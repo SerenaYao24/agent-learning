@@ -16,3 +16,7 @@
 ## git 分支名禁止中文
 
 GitHub API 不支持中文分支名（HTTP 400）。任何时候创建/重命名分支，只能用英文、数字、连字符。不用验证、不用问、不用犹豫。
+
+## git 禁止提交大文件/二进制文件
+
+图片、截图、缓存文件等二进制资源一律不入 git。提交前检查：`git rev-list --objects --all | git cat-file --batch-check | sort -k2 -rn | head -10`。超过 500KB 的文件必须确认是否该忽略。一旦入库，清理历史很麻烦（filter-branch）。
