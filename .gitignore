@@ -1,0 +1,30 @@
+.playwright-cli
+todo
+node_modules/
+.DS_Store
+
+# 项目缓存/临时数据
+**/.stock_cache/
+**/.codebuddy/
+**/log/
+**/__pycache__/
+**/*.pyc
+**/data/
+
+# 自动生成的文件
+**/trend_view.html
+**/interest_stock_new.md
+**/filter/
+**/数据/
+
+# 已学习文章（原始内容，不计入仓库）
+**/2_已学习文章/
+
+# 公众号文章的截图/附件
+**/screenshots/
+**/images/
+**/image_urls.txt
+**/structure.json
+
+# 系统 skill 备份
+0_system/skills/
