@@ -20,3 +20,7 @@ GitHub API 不支持中文分支名（HTTP 400）。任何时候创建/重命名
 ## git 禁止提交大文件/二进制文件
 
 图片、截图、缓存文件等二进制资源一律不入 git。提交前检查：`git rev-list --objects --all | git cat-file --batch-check | sort -k2 -rn | head -10`。超过 500KB 的文件必须确认是否该忽略。一旦入库，清理历史很麻烦（filter-branch）。
+
+## git push 需 VPN，超 10s 即网络问题
+
+本机访问 GitHub 需开 VPN。执行 push 后若 10 秒无响应，直接中断，不再重试——是网络问题而非代码问题。让用户开 VPN 后再试。
