@@ -28,3 +28,7 @@ node_modules/
 
 # 系统 skill 备份
 0_system/skills/
+
+# 原始数据（不推送）
+**/.index_data/
+**/.ma5_ranking/
