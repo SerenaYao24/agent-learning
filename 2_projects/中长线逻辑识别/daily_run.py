@@ -18,6 +18,7 @@ PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 STEPS = [
     ("自选股趋势分析", ["python", "stock_trend_analysis.py", "-i", "interest_stock.md"]),
     ("MA5 角度排名", ["python", "scrape_ma5_ranking.py", "--top", "200"]),
+    ("成交额排行", ["python", "scrape_amount_ranking.py", "--top", "50"]),
     ("指数+ETF 数据", ["python", "index_data.py"]),
     ("异常检测", ["python", "anomaly_detection.py", "--save-tags"]),
     ("生成看板", ["python", "generate_dashboard.py"]),
@@ -25,8 +26,9 @@ STEPS = [
 
 
 def run(cmd, cwd):
-    """Run a command; returns True on success."""
-    return subprocess.run(cmd, cwd=cwd).returncode == 0
+    """Run a command; returns (success: bool, output: str)."""
+    r = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
+    return r.returncode == 0, r.stderr.strip() or r.stdout.strip()
 
 
 def main():
@@ -57,12 +59,16 @@ def main():
     print()
     for i, (desc, cmd) in enumerate(STEPS, 1):
         print(f"[{i}/{len(STEPS)}] {desc}...")
-        if run(cmd, PROJECT_DIR):
+        success, output = run(cmd, PROJECT_DIR)
+        if success:
             ok += 1
             print(f"  ✓ 完成")
         else:
             fail += 1
-            print(f"  ⚠ 失败（退出码非零），继续下一步")
+            print(f"  ⚠ 失败，继续下一步")
+            if output:
+                for line in output.splitlines()[-6:]:
+                    print(f"    {line}")
 
     elapsed = time.time() - t0
     print()
