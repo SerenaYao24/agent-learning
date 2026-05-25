@@ -41,6 +41,13 @@
 
 ## 工作指令（Workflow instructions）
 
+### 0. 每日一键流程（最常用）
+
+```bash
+python daily_run.py --analyze    # 串行执行以下 1→2→7→5→8
+python daily_run.py              # 全流程（含涨停板复盘提醒）
+```
+
 ### 1. MA5 角度排行（主链路）
 
 ```bash
