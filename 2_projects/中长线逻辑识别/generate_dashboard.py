@@ -43,27 +43,6 @@ def load_index_state():
     return {"state": "区间震荡"}
 
 
-def analyze_risk_tags(breadth, daily_idx, latest_date):
-    """数据驱动风险标签"""
-    tags = []
-    up = int(breadth.get("上涨", 0) or 0)
-    down = int(breadth.get("下跌", 0) or 0)
-    limit_up = int(breadth.get("涨停", 0) or 0)
-    limit_down = int(breadth.get("跌停", 0) or 0)
-    if up > 0 and down > 0:
-        ratio = up / (up + down)
-        if ratio < 0.3:
-            tags.append("普跌")
-        elif ratio > 0.7:
-            tags.append("普涨")
-        if ratio < 0.5:
-            tags.append("偏弱")
-    if limit_up < 50:
-        tags.append("情绪低迷")
-    if limit_down > 50:
-        tags.append("恐慌")
-    return tags
-
 
 def load_watched_stocks():
     """从 interest_stock.md 提取关注的股票: {名称: {theme, note}}, theme_order"""
@@ -126,8 +105,8 @@ def get_block_trades(date_str):
     except Exception as e:
         print(f"  大宗交易获取失败: {e}")
         return []
-INDEX_ORDER = ["上证指数", "深证成指", "创业板指", "科创综指", "同花顺全A"]
-INDEX_CODES = {"上证指数": "000001", "深证成指": "399001", "创业板指": "399006", "科创综指": "000680", "同花顺全A": "883957"}
+INDEX_ORDER = ["上证指数", "深证成指", "创业板指", "科创综指"]
+INDEX_CODES = {"上证指数": "000001", "深证成指": "399001", "创业板指": "399006", "科创综指": "000680"}
 ETF_ORDER = ["中证500ETF", "沪深300ETF", "上证50ETF", "半导体设备ETF", "科创芯片ETF", "创业板ETF"]
 COLORS = ["#3b82f6", "#f59e0b", "#ef4444", "#10b981", "#8b5cf6", "#ec4899"]
 
@@ -223,9 +202,11 @@ def build_html():
     latest_date = all_dates[-1] if all_dates else "2026-05-22"
     last5 = all_dates[-5:] if len(all_dates) >= 5 else all_dates
 
-    # ---- 总成交额 (同花顺全A) ----
+    # ---- 总成交额 = (上证+深证) * 1.01 ----
     daily_idx = load_daily("index").get(latest_date, {})
-    total_amt_yi = round(float(daily_idx.get("同花顺全A", {}).get("成交额", 0)) / 1e12, 2)
+    _sh_amt = float(daily_idx.get("上证指数", {}).get("成交额", 0))
+    _sz_amt = float(daily_idx.get("深证成指", {}).get("成交额", 0))
+    total_amt_yi = round((_sh_amt + _sz_amt) * 1.01 / 1e12, 2)
 
     # ---- 指数数据 ----
     index_data = []
@@ -249,11 +230,12 @@ def build_html():
             "code": INDEX_CODES.get(name, ""),
         })
 
-    # 上证指数量能用市场总成交额(同花顺全A日K / 上证+深证分钟)
-    THS_KLINES = {d["date"]: d["amount"] for d in index_data[4]["kline"]}
+    # 上证指数量能 = (上证+深证) * 1.01
+    _sh_amt_map = {d["date"]: d["amount"] for d in index_data[0]["kline"]}
+    _sz_amt_map = {d["date"]: d["amount"] for d in index_data[1]["kline"]}
     for d in index_data[0]["kline"]:
-        d["amount"] = THS_KLINES.get(d["date"], 0)
-    # 分时量能 (同花顺全A无分钟线, 用上证+深证)
+        d["amount"] = (_sh_amt_map.get(d["date"], 0) + _sz_amt_map.get(d["date"], 0)) * 1.01
+    # 分时量能 (上证+深证)
     def _minute_amt_map(data):
         return {m["time"]: float(m.get("amount_yi", 0) or 0) * 1e8 for m in data} if data else {}
     sh_min_amt = _minute_amt_map(index_data[0]["minute"])
@@ -311,28 +293,31 @@ def build_html():
         with open(MONITOR_FILE, encoding="utf-8") as f:
             monitor_data = json.load(f)
 
-    # ---- 涨跌家数 (breadth_*.csv 存在则加载，否则占位) ----
+    # ---- 涨跌家数 (breadth_*.csv 存在则加载，否则回退到最近可用文件) ----
     breadth = {"上涨": "—", "下跌": "—", "涨停": "—", "跌停": "—"}
-    bf = os.path.join(INDEX_DIR, f"breadth_{latest_date}.csv")
-    if os.path.exists(bf):
-        try:
-            with open(bf, encoding="utf-8-sig") as fh:
-                for row in csv.DictReader(fh):
-                    breadth[row["指标"]] = row["数值"]
-        except Exception:
-            pass
+    breadth_loaded = False
+    for try_date in [latest_date] + sorted(all_dates, reverse=True):
+        bf = os.path.join(INDEX_DIR, f"breadth_{try_date}.csv")
+        if os.path.exists(bf):
+            try:
+                with open(bf, encoding="utf-8-sig") as fh:
+                    for row in csv.DictReader(fh):
+                        breadth[row["指标"]] = row["数值"]
+                breadth_loaded = True
+                if try_date != latest_date:
+                    breadth["_fallback_date"] = try_date
+                break
+            except Exception:
+                pass
 
     # ---- 风险标签 ----
     stored = load_risk_tags()
-    auto_tags = analyze_risk_tags(breadth, daily_idx, latest_date)
     manual_tags = stored.get("manual", [])
-    auto_tags_json = json.dumps(auto_tags, ensure_ascii=False)
     manual_tags_json = json.dumps(manual_tags, ensure_ascii=False)
 
     # ---- 机会标签 ----
     opp_stored = load_opp_tags()
     opp_manual = opp_stored.get("manual", [])
-    opp_auto_json = json.dumps([], ensure_ascii=False)
     opp_manual_json = json.dumps(opp_manual, ensure_ascii=False)
 
     # ---- 指数状态 ----
@@ -344,6 +329,8 @@ def build_html():
     etf_json = json.dumps(etf_data, ensure_ascii=False, default=str)
     rank_json = json.dumps(ranking[:30], ensure_ascii=False, default=str) if ranking else "[]"
     # 按题材树状结构 + 加权平均折溢率
+    # 最新交易日（用于标记今日新增）
+    latest_trade_date = max((r["日期"] for r in block_trades), default="")
     themes = {}  # theme -> {trades: [], total_amt: 0, weighted_rate: 0}
     for r in block_trades:
         if r["代码"] not in watched_codes and r["简称"] not in watched_stocks:
@@ -365,11 +352,13 @@ def build_html():
             continue
         t = themes[theme]
         wavg = t["weighted_sum"] / t["total_amt"] * 100 if t["total_amt"] > 0 else 0
+        new_count = sum(1 for r in t["trades"] if r["日期"] == latest_trade_date)
         block_tree.append({
             "theme": theme,
             "wavg_rate": round(wavg, 2),
             "total_amt": round(t["total_amt"], 0),
             "count": len(t["trades"]),
+            "new_count": new_count,
             "trades": sorted(t["trades"], key=lambda x: x["日期"], reverse=True),
         })
     block_json = json.dumps(block_tree, ensure_ascii=False, default=str)
@@ -462,6 +451,12 @@ body{{background:#0a0e17;color:#e0e6ed;font-family:'Fira Sans',-apple-system,san
 .empty-state{{text-align:center;padding:60px 20px;color:#6b7d95}}
 .empty-state .icon{{font-size:32px;margin-bottom:12px}}
 .empty-state p{{font-size:13px}}
+
+/* Tooltip hint */
+.tooltip-hint{{position:relative;display:inline-block;color:#4b5563;cursor:help;font-weight:700;width:16px;text-align:center;border:1px solid #374151;border-radius:50%;font-size:10px;line-height:14px}}
+.tooltip-hint:hover .tooltip-text{{visibility:visible;opacity:1}}
+.tooltip-text{{visibility:hidden;opacity:0;position:absolute;bottom:140%;left:50%;transform:translateX(-50%);background:#1e293b;color:#e0e6ed;font-size:11px;font-weight:400;padding:5px 10px;border-radius:6px;border:1px solid #334155;white-space:nowrap;z-index:100;transition:opacity .15s;pointer-events:none}}
+.tooltip-text::after{{content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:#334155}}
 </style>
 </head>
 <body>
@@ -544,7 +539,6 @@ body{{background:#0a0e17;color:#e0e6ed;font-family:'Fira Sans',-apple-system,san
 
 <script>
 // ========== 风险标签 ==========
-var _autoTags = {auto_tags_json};
 var _riskState = {{"manual":[],"deleted":[]}};
 
 function loadRiskState() {{
@@ -559,8 +553,7 @@ function renderRiskTags() {{
   var st = _riskState;
   var manual = st.manual || [];
   var deleted = st.deleted || [];
-  var auto = _autoTags.filter(function(t){{return deleted.indexOf(t)<0;}});
-  var all = auto.concat(manual);
+  var all = manual.filter(function(t){{return deleted.indexOf(t)<0;}});
   var el = document.getElementById('risk-tags');
   if (!el) return;
   el.innerHTML = '';
@@ -603,7 +596,6 @@ function deleteRiskTag(el) {{
 }}
 
 // ========== 机会标签 ==========
-var _autoOppTags = {opp_auto_json};
 var _oppState = {{"manual":[],"deleted":[]}};
 
 function loadOppState() {{
@@ -618,8 +610,7 @@ function renderOppTags() {{
   var st = _oppState;
   var manual = st.manual || [];
   var deleted = st.deleted || [];
-  var auto = _autoOppTags.filter(function(t){{return deleted.indexOf(t)<0;}});
-  var all = auto.concat(manual);
+  var all = manual.filter(function(t){{return deleted.indexOf(t)<0;}});
   var el = document.getElementById('opp-tags');
   if (!el) return;
   el.innerHTML = '';
@@ -1006,14 +997,15 @@ function buildBlockTable() {{
     el.innerHTML = '<div class=\"empty-state\"><div class=\"icon\">📋</div><p>自选股近5日无大宗交易</p></div>';
     return;
   }}
-  let h = '<table class=\"rank-table block-table\"><thead><tr><th>名称</th><th>代码</th><th>日期</th><th>成交价</th><th>折溢率</th><th>总额(万)</th><th>备注</th></tr></thead><tbody>';
+  let h = '<table class=\"rank-table block-table\"><thead><tr><th>名称</th><th>代码</th><th>日期</th><th>成交价</th><th>折溢率<span class=\"tooltip-hint\">?<span class=\"tooltip-text\">近5日加权折溢率 = Σ(折溢率×成交额) / Σ成交额</span></span></th><th>总额(万)</th><th>备注</th></tr></thead><tbody>';
   data.forEach(function(theme) {{
     var wr = theme['wavg_rate']; var ws = wr>=0?'+':''; var wc = wr>0?'up':wr<0?'down':'';
+    var newBadge = theme['new_count'] > 0 ? '<span style=\"color:#f59e0b;font-size:11px\">今日新增 '+theme['new_count']+'笔</span>' : '';
     h += '<tr class=\"theme-row\" style=\"background:#111827;cursor:pointer\" onclick=\"toggleTheme(this)\">';
     h += '<td><b>'+theme['theme']+'</b></td><td></td><td></td><td></td>';
     h += '<td class=\"'+wc+'\">'+ws+wr.toFixed(2)+'%</td>';
     h += '<td>'+theme['total_amt'].toFixed(0)+'</td>';
-    h += '<td></td></tr>';
+    h += '<td>'+newBadge+'</td></tr>';
     (theme['trades']||[]).forEach(function(r) {{
       var rate=(r['折溢率']*100); var sign=rate>=0?'+':''; var cls=rate>0?'up':rate<0?'down':'';
       h += '<tr class=\"trade-row\" style=\"display:none\"><td>'+r['简称']+'</td><td>'+r['代码']+'</td><td>'+r['日期'].slice(5)+'</td><td>'+r['成交价'].toFixed(2)+'</td><td class=\"'+cls+'\">'+sign+rate.toFixed(2)+'%</td><td>'+r['成交总额_万'].toFixed(0)+'</td><td style=\"color:#6b7d95;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap\" title=\"'+(r['note']||'').replace(/\"/g,'&quot;')+'\">'+(r['note']||'')+'</td></tr>';
