@@ -324,6 +324,60 @@ def 抗跌题材(sectors, details, content, ctx):
     return result, "抗跌题材"
 
 
+@register_filter
+def 加强题材(sectors, details, content, ctx):
+    """
+    筛选加强题材
+
+    条件：
+        - d4 > 0 且 d5 > 0（近两个交易日日均都上涨）
+        - d5 > d4（后一日涨幅 > 前一日）
+        - d5 > 3%（后一日日均涨幅 > 3%）
+
+    输出：题材概览 + 题材内近5日涨幅前3的股票及其当天涨跌幅
+    """
+    sector_map = ctx["sector_map"]
+    stock_windows = ctx["stock_windows"]
+    daily_changes = ctx["daily_changes"]
+
+    sector_stocks = {}
+    for stock_name, stock_sectors in sector_map.items():
+        for sec in stock_sectors:
+            sector_stocks.setdefault(sec, []).append(stock_name)
+
+    result = []
+    for s in sectors:
+        d4, d5 = s["d4"], s["d5"]
+        if not (d4 > 0 and d5 > 0):
+            continue
+        if not (d5 > d4):
+            continue
+        if not (d5 > 3):
+            continue
+
+        reason = f"d4={d4:+.2f}% → d5={d5:+.2f}% (加速+{d5-d4:.2f})"
+
+        sec_name = s["name"]
+        stocks_in_sector = sector_stocks.get(sec_name, [])
+        stock_rank = []
+        for stk in stocks_in_sector:
+            w_info = stock_windows.get(stk, {})
+            w6 = w_info.get("window6", 0.0)
+            dc = daily_changes.get(stk)
+            conc = w_info.get("conclusion", "")
+            stock_rank.append({
+                "name": stk, "window6": w6,
+                "daily_change": dc, "conclusion": conc,
+            })
+        stock_rank.sort(key=lambda x: x["window6"], reverse=True)
+        top3 = stock_rank[:3]
+
+        result.append({**s, "reason": reason, "top3": top3})
+
+    result.sort(key=lambda x: x["d5"], reverse=True)
+    return result, "加强题材"
+
+
 # ── 输出格式化 & 保存 ──────────────────────────────────────────
 
 def format_filter_result(result, title):
