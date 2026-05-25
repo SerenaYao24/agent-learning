@@ -197,7 +197,8 @@ def get_market_breadth():
 # ======== 分钟线 ========
 
 def get_minute_mkline(code, period="m5", date_str=""):
-    """腾讯 mkline 分钟线（m5/m1，含历史）"""
+    """腾讯 mkline 分钟线（m5/m1，含历史）
+    row format: [time, open, close, high, low, volume, ...]"""
     try:
         url = f"http://ifzq.gtimg.cn/appstock/app/kline/mkline?param={code},{period},,2026-05-10"
         data = json.loads(requests.get(url, timeout=10).text)
@@ -208,10 +209,14 @@ def get_minute_mkline(code, period="m5", date_str=""):
             dt = row[0]
             if target and dt[:8] != target:
                 continue
+            vol_shou = float(row[5])
             result.append({
                 "time": f"{dt[8:10]}:{dt[10:12]}",
+                "date": f"{dt[:4]}-{dt[4:6]}-{dt[6:8]}",
+                "open": float(row[1]),
                 "price": float(row[2]),
-                "amount_yi": round(float(row[5]) * 100 * float(row[2]) / 1e8, 2),
+                "volume_shou": vol_shou,
+                "amount_yi": round(vol_shou * 100 * float(row[2]) / 1e8, 2),
             })
         return result
     except Exception:
@@ -288,12 +293,15 @@ def _append_row(path, row):
         w.writerow(row)
 
 
+MINUTE_FIELDS = ["time", "open", "price", "volume_shou", "amount_yi"]
+
+
 def save_minute_data(name, minutes, date_str, prefix, suffix=""):
     """保存分钟线 CSV"""
     safe = name.replace("/", "_")
     path = os.path.join(OUT_DIR, f"{prefix}_minute{suffix}_{safe}_{date_str}.csv")
     with open(path, "w", newline="", encoding="utf-8-sig") as f:
-        w = csv.DictWriter(f, fieldnames=["time", "price", "amount_yi"])
+        w = csv.DictWriter(f, fieldnames=MINUTE_FIELDS, extrasaction='ignore')
         w.writeheader()
         w.writerows(minutes)
 
@@ -379,12 +387,19 @@ def main():
             if minutes_m1:
                 print(f"  m1: {len(minutes_m1)}条 ({minutes_m1[0]['time']}~{minutes_m1[-1]['time']})")
                 save_minute_data(name, minutes_m1, rows[-1]["日期"], "index")
-            # 同时拉 m5
+            # 同时拉 m5（多日，与 ETF 一致）
             if rows:
-                minutes_m5 = get_minute_mkline(tx_code, "m5", rows[-1]["日期"])
-                if minutes_m5:
-                    print(f"  m5: {len(minutes_m5)}条")
-                    save_minute_data(name, minutes_m5, rows[-1]["日期"], "index", "_m5")
+                all_m5 = get_minute_mkline(tx_code, "m5")
+                if all_m5:
+                    print(f"  m5: {len(all_m5)}条")
+                    m5_by_date = {}
+                    for m in all_m5:
+                        d = m.get("date", "")
+                        if d:
+                            m5_by_date.setdefault(d, []).append(m)
+                    for d, pts in m5_by_date.items():
+                        save_minute_data(name, pts, d, "index", "_m5")
+                    minutes_m5 = m5_by_date.get(rows[-1]["日期"], [])
 
         all_data.append({"name": name, "daily": rows, "minutes": minutes_m1,
                          "minutes_m5": minutes_m5, "prefix": "index"})

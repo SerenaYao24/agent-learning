@@ -9,6 +9,7 @@ INDEX_DIR = os.path.join(DATA_DIR, ".index_data")
 RISK_TAGS_FILE = os.path.join(DATA_DIR, "risk_tags.json")
 MONITOR_FILE = os.path.join(DATA_DIR, "monitor.json")
 OPP_TAGS_FILE = os.path.join(DATA_DIR, "opp_tags.json")
+INDEX_STATE_FILE = os.path.join(DATA_DIR, "index_state.json")
 
 os.makedirs(INDEX_DIR, exist_ok=True)
 
@@ -47,6 +48,9 @@ class DashboardHandler(SimpleHTTPRequestHandler):
         elif path == "/api/monitor":
             data = read_json(MONITOR_FILE, [])
             self._json_response(data)
+        elif path == "/api/index-state":
+            data = read_json(INDEX_STATE_FILE, {"state": "区间震荡"})
+            self._json_response(data)
         else:
             super().do_GET()
 
@@ -74,6 +78,13 @@ class DashboardHandler(SimpleHTTPRequestHandler):
             try:
                 data = json.loads(body)
                 write_json(MONITOR_FILE, data)
+                self._json_response({"ok": True})
+            except Exception as e:
+                self._json_response({"ok": False, "error": str(e)}, 400)
+        elif path == "/api/index-state":
+            try:
+                data = json.loads(body)
+                write_json(INDEX_STATE_FILE, data)
                 self._json_response({"ok": True})
             except Exception as e:
                 self._json_response({"ok": False, "error": str(e)}, 400)

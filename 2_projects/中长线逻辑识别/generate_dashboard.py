@@ -9,6 +9,7 @@ RANK_DIR = os.path.join(DATA_DIR, ".ma5_ranking")
 RISK_TAGS_FILE = os.path.join(DATA_DIR, "risk_tags.json")
 MONITOR_FILE = os.path.join(DATA_DIR, "monitor.json")
 OPP_TAGS_FILE = os.path.join(DATA_DIR, "opp_tags.json")
+INDEX_STATE_FILE = os.path.join(DATA_DIR, "index_state.json")
 
 
 def load_risk_tags():
@@ -33,6 +34,13 @@ def load_opp_tags():
 def save_opp_tags(data):
     with open(OPP_TAGS_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False)
+
+
+def load_index_state():
+    if os.path.exists(INDEX_STATE_FILE):
+        with open(INDEX_STATE_FILE, encoding="utf-8") as f:
+            return json.load(f)
+    return {"state": "区间震荡"}
 
 
 def analyze_risk_tags(breadth, daily_idx, latest_date):
@@ -154,6 +162,29 @@ def load_minute(name, date_str, prefix="index", m5=False):
         return list(csv.DictReader(f))
 
 
+def is_index_m1_minute(rows):
+    """区分真实 m1 与历史误存的 m5（index_minute_*.csv 仅 48 根、从 09:35 起）"""
+    if not rows:
+        return False
+    times = [r.get("time", "") for r in rows]
+    if len(times) >= 100:
+        return True
+    if "09:31" in times[:30]:
+        return True
+    if len(times) < 60 and times and times[0] >= "09:35" and "09:31" not in times:
+        return False
+    return len(times) >= 60
+
+
+def load_all_minutes_m1(name, dates, prefix="index"):
+    """加载多日期 m1 分钟线，返回 {date: rows}，无真实 m1 则为 []（保留交易日占位）"""
+    result = {}
+    for d in dates:
+        rows = load_minute(name, d, prefix, m5=False)
+        result[d] = rows if is_index_m1_minute(rows) else []
+    return result
+
+
 def load_all_minutes_m5(name, dates, prefix="index"):
     """加载多日期分钟数据(先用m5文件名, 回退到无后缀), 返回 {date: [{time,price,amount_yi}]}"""
     result = {}
@@ -205,6 +236,12 @@ def build_html():
         minute_m5 = load_minute(name, latest_date, prefix, m5=True)
         minute_data = minute_m1 if minute_m1 else minute_m5
         m5_all = load_all_minutes_m5(name, last5, prefix)
+        # m5 缺09:30点，补开盘价（与 ETF 一致）
+        for dt in m5_all:
+            kline_map = {k["date"]: k["open"] for k in kline}
+            op = kline_map.get(dt, 0)
+            if op > 0 and m5_all[dt]:
+                m5_all[dt].insert(0, {"time": "09:30", "price": str(op), "amount_yi": "0"})
         index_data.append({
             "name": name, "kline": kline, "minute": minute_data,
             "m5_5day": {d: m5_all.get(d, []) for d in last5},
@@ -224,7 +261,7 @@ def build_html():
     for m in index_data[0]["minute"]:
         t = m["time"]
         m["amount_yi"] = round((sh_min_amt.get(t, 0) + sz_min_amt.get(t, 0)) / 1e8, 2)
-    # 5日分时量能
+    # 5日分时量能（指数用 m5，与 ETF 一致）
     for dt in index_data[0]["m5_5day"]:
         sh5 = _minute_amt_map(index_data[0]["m5_5day"].get(dt, []))
         sz5 = _minute_amt_map(index_data[1]["m5_5day"].get(dt, []))
@@ -297,6 +334,10 @@ def build_html():
     opp_manual = opp_stored.get("manual", [])
     opp_auto_json = json.dumps([], ensure_ascii=False)
     opp_manual_json = json.dumps(opp_manual, ensure_ascii=False)
+
+    # ---- 指数状态 ----
+    idx_state = load_index_state()
+    index_state_default = idx_state.get("state", "区间震荡")
 
     # ---- 嵌入 JSON ----
     index_json = json.dumps(index_data, ensure_ascii=False, default=str)
@@ -441,6 +482,14 @@ body{{background:#0a0e17;color:#e0e6ed;font-family:'Fira Sans',-apple-system,san
     <span class="label">成交额</span>
     <span class="value">{total_amt_yi:.2f}<span class="sub">万亿</span></span>
   </div>
+  <div class="indicator" id="index-state-indicator">
+    <span class="label">指数状态</span>
+    <select id="index-state-select" onchange="onIndexStateChange(this.value)" style="padding:4px 8px;border-radius:6px;font-size:12px;background:#1e2a3a;color:#e0e6ed;border:1px solid #334155;font-family:inherit;cursor:pointer;margin-top:2px">
+      <option value="区间震荡">区间震荡</option>
+      <option value="主升">主升</option>
+      <option value="破位下跌">破位下跌</option>
+    </select>
+  </div>
 </div>
 <div class="risk-tags" id="risk-tags">
 </div>
@@ -537,6 +586,18 @@ function addRiskTag(tag) {{
   if (_riskState.manual.indexOf(tag)<0) _riskState.manual.push(tag);
   var delIdx = (_riskState.deleted||[]).indexOf(tag);
   if (delIdx>=0) _riskState.deleted.splice(delIdx,1);
+  saveRiskState(_riskState);
+  renderRiskTags();
+}}
+
+function deleteRiskTag(el) {{
+  var tag = el.getAttribute('data-tag');
+  var mIdx = (_riskState.manual||[]).indexOf(tag);
+  if (mIdx>=0) {{ _riskState.manual.splice(mIdx,1); }}
+  else {{
+    if (!_riskState.deleted) _riskState.deleted = [];
+    if (_riskState.deleted.indexOf(tag)<0) _riskState.deleted.push(tag);
+  }}
   saveRiskState(_riskState);
   renderRiskTags();
 }}
@@ -785,7 +846,7 @@ function render5Day(chartId, m5ByDate, isETF) {{
   let allPrices = [], allAmounts = [], allLabels = [], markLines = [];
   dates.forEach((d, di) => {{
     const pts = (m5ByDate[d]||[]).sort((a,b)=>a.time.localeCompare(b.time));
-    if (!pts.length) return;
+    if (isETF && !pts.length) return;
     allLabels.push(d.slice(5));
     allPrices.push(null); allAmounts.push(null);
     pts.forEach(m => {{
@@ -881,7 +942,7 @@ function buildIndexGrid() {{
     const c3 = document.createElement('div'); c3.className = 'card';
     c3.innerHTML = '<div class="card-title"><span class="name">5日分时</span></div><div class="chart" id="'+bid+'_5d"></div>';
     grid.appendChild(c3);
-    render5Day(bid+'_5d', item.m5_5day);
+    render5Day(bid+'_5d', item.m5_5day, true);
   }});
 }}
 
@@ -1047,10 +1108,25 @@ function renderMonitorTable(data) {{
   el.innerHTML = h;
 }}
 
+// ========== 指数状态 ==========
+var _indexState = "{index_state_default}";
+function loadIndexState() {{
+  fetch('/api/index-state').then(r=>r.json()).then(function(d){{
+    _indexState = d.state || "区间震荡";
+    var sel = document.getElementById('index-state-select');
+    if (sel) sel.value = _indexState;
+  }}).catch(function(){{}});
+}}
+function onIndexStateChange(state) {{
+  _indexState = state;
+  fetch('/api/index-state',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{state:state}})}}).catch(function(){{}});
+}}
+
 // ========== 初始化 ==========
 document.addEventListener('DOMContentLoaded', function() {{
   loadRiskState();
   loadOppState();
+  loadIndexState();
   buildIndexGrid();
   buildRankTable();
   _tabRendered['index'] = true;

@@ -32,3 +32,4 @@ node_modules/
 # 原始数据（不推送）
 **/.index_data/
 **/.ma5_ranking/
+.playwright-mcp/
