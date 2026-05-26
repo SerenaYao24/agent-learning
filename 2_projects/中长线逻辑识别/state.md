@@ -1,5 +1,16 @@
 # 中长线逻辑识别 — 状态记录
 
+## 2026-05-25
+
+- **已完成**：
+  - 删除同花顺全A指数：移除 `index_data.py` 中三个函数和 main() 调用，总量能改为 `(上证+深证)*1.01`
+  - 修复 `generate_dashboard.py` 中 `index_data[4]` 引用 → `(上证+深证)*1.01`
+  - 更新 `anomaly_detection.py`：`check_index_volume` 和 `check_panic_sell` 用新总成交额公式替代同花顺全A
+  - 更新 `context.md`、`代码使用方法.md`、`异常检测需求.md` 同步删除同花顺全A引用
+- **已完成**：
+  - 集成 trend_view.html 到 dashboard：板块数据 tab（解析多日报告题材表格，可点击跳转）+ 个股数据 tab（K线卡片 + 题材 pills 筛选，按5日涨幅降序，默认展示最强板块，切换题材时懒加载 ECharts 图表）
+- **当前状态**：看板生成、异常检测、每日编排脚本均已适配新总成交额公式
+
 ## 2026-05-24
 
 - **已完成**：

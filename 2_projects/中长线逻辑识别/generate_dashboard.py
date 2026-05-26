@@ -6,10 +6,14 @@ from datetime import datetime
 DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 INDEX_DIR = os.path.join(DATA_DIR, ".index_data")
 RANK_DIR = os.path.join(DATA_DIR, ".ma5_ranking")
+STOCK_CACHE = os.path.join(DATA_DIR, ".stock_cache")
+STOCK_DATA_PATH = os.path.join(STOCK_CACHE, "stock_data.json")
+CODE_MAP_PATH = os.path.join(STOCK_CACHE, "stock_code_map.json")
 RISK_TAGS_FILE = os.path.join(DATA_DIR, "risk_tags.json")
 MONITOR_FILE = os.path.join(DATA_DIR, "monitor.json")
 OPP_TAGS_FILE = os.path.join(DATA_DIR, "opp_tags.json")
 INDEX_STATE_FILE = os.path.join(DATA_DIR, "index_state.json")
+STOCK_DAYS = 20
 
 
 def load_risk_tags():
@@ -74,6 +78,133 @@ def load_watched_stocks():
                 if re.match(r'^[\u4e00-\u9fff]{2,6}$', name):
                     stocks[name] = {"theme": current_theme, "note": note}
     return stocks, codes, theme_order
+
+
+def find_latest_multi_report():
+    """Return path to the latest multi_day_trend_*.md (not _detail), or None."""
+    multi_dir = os.path.join(STOCK_CACHE, "reports", "多日分析")
+    if not os.path.exists(multi_dir):
+        return None
+    files = sorted(glob.glob(os.path.join(multi_dir, "multi_day_trend_*.md")))
+    files = [f for f in files if "_detail" not in f]
+    return files[-1] if files else None
+
+
+def parse_sector_overview(report_path):
+    """Parse the '题材情况' table from a multi-day report.
+    Returns [{name, status, ret_5d, gt5_pct, stars}, ...]"""
+    if not report_path:
+        return []
+    sectors = []
+    in_table = False
+    with open(report_path, encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if "题材名称" in line and "近5日涨幅" in line:
+                in_table = True
+                continue
+            if in_table:
+                if not line.startswith("|"):
+                    break
+                if "---" in line or "题材名称" in line:
+                    continue
+                parts = [p.strip() for p in line.split("|")]
+                cells = [p for p in parts if p]
+                if len(cells) < 6:
+                    continue
+                # cells: [题材名称, 状态, d1, d2, d3, d4, d5, 近5日涨幅, 涨超5%占比, 明星标的]
+                name = re.sub(r'\*+', '', cells[0]).strip()
+                status = re.sub(r'<[^>]+>', '', cells[1]).replace('**', '').strip()
+                ret_5d = cells[-3].strip()
+                gt5_pct = cells[-2].strip()
+                stars = cells[-1].strip()
+                sectors.append({
+                    "name": name, "status": status,
+                    "ret_5d": ret_5d, "gt5_pct": gt5_pct, "stars": stars,
+                })
+    return sectors
+
+
+def _trading_days_back(n, stock_data):
+    """从缓存中收集所有标的的日期，取最近 N 个不重复的交易日"""
+    all_dates = set()
+    for sd in stock_data.values():
+        if isinstance(sd, dict):
+            all_dates.update(sd.get("dates", []))
+    return sorted(all_dates)[-n:]
+
+
+def load_stock_ohlcv_readonly(stock_names, watched_stocks, days=20):
+    """从缓存只读加载 OHLCV 数据，不调 API。返回 {name: {sector, code, dates, open, close, low, high, amounts, latest_close, pct_changes, cum5d}}"""
+    if not os.path.exists(STOCK_DATA_PATH):
+        return {}
+    with open(STOCK_DATA_PATH, encoding="utf-8") as f:
+        stock_data = json.load(f)
+    code_map = {}
+    if os.path.exists(CODE_MAP_PATH):
+        with open(CODE_MAP_PATH, encoding="utf-8") as f:
+            code_map = json.load(f)
+
+    target_dates = _trading_days_back(days, stock_data)
+    nd = len(target_dates)
+    if nd == 0:
+        return {}
+
+    result = {}
+    for name in stock_names:
+        code = code_map.get(name)
+        if not code or code not in stock_data:
+            continue
+        sd = stock_data[code]
+        if not isinstance(sd, dict):
+            continue
+        date_to_idx = {d: i for i, d in enumerate(sd.get("dates", []))}
+
+        ohlc_out = [[None] * nd for _ in range(4)]
+        amounts_out = [0] * nd
+        changes_out = [0] * nd
+
+        for col, d in enumerate(target_dates):
+            if d not in date_to_idx:
+                continue
+            idx = date_to_idx[d]
+            for arr_i, field in enumerate(["open", "close", "low", "high"]):
+                arr = sd.get(field, [])
+                if idx < len(arr) and arr[idx] is not None:
+                    ohlc_out[arr_i][col] = arr[idx]
+            amt_arr = sd.get("amount", [])
+            if idx < len(amt_arr) and amt_arr[idx] is not None:
+                amounts_out[col] = amt_arr[idx]
+            chg_arr = sd.get("daily_changes", [])
+            if idx < len(chg_arr):
+                changes_out[col] = chg_arr[idx]
+
+        latest_close = None
+        for v in reversed(ohlc_out[1]):
+            if v is not None:
+                latest_close = v
+                break
+
+        cum5d = None
+        if len(changes_out) >= 5:
+            p = 1.0
+            for c in changes_out[-5:]:
+                p *= (1 + c / 100)
+            cum5d = round((p - 1) * 100, 2)
+
+        info = watched_stocks.get(name, {})
+        result[name] = {
+            "sector": info.get("theme", "其他"),
+            "code": code.replace("sh", "").replace("sz", ""),
+            "dates": list(target_dates),
+            "open": ohlc_out[0], "close": ohlc_out[1],
+            "low": ohlc_out[2], "high": ohlc_out[3],
+            "amounts": amounts_out,
+            "latest_close": latest_close,
+            "pct_changes": [round(c, 2) for c in changes_out],
+            "cum5d": cum5d,
+        }
+    return result
 
 
 def get_block_trades(date_str):
@@ -364,6 +495,42 @@ def build_html():
     block_json = json.dumps(block_tree, ensure_ascii=False, default=str)
     monitor_json = json.dumps(monitor_data, ensure_ascii=False, default=str)
 
+    # ---- 板块数据 ----
+    multi_report = find_latest_multi_report()
+    sector_data = parse_sector_overview(multi_report) if multi_report else []
+
+    # ---- 个股数据 (STOCK_MAP) ----
+    watched_names = list(watched_stocks.keys())
+    stock_map = load_stock_ohlcv_readonly(watched_names, watched_stocks, STOCK_DAYS)
+
+    def _make_stock_js():
+        """Serialize stock_map to JS STOCK_MAP, matching trend_view.html field names."""
+        lines = []
+        for name, info in stock_map.items():
+            esc_name = name.replace("\\", "\\\\").replace("'", "\\'")
+            esc_sector = info["sector"].replace("\\", "\\\\").replace("'", "\\'")
+            lines.append(
+                f"'{esc_name}':{{"
+                f"s:'{esc_sector}',c:'{info['code']}',"
+                f"d:{json.dumps(info['dates'])},"
+                f"o:{json.dumps(info['open'])},"
+                f"cl:{json.dumps(info['close'])},"
+                f"l:{json.dumps(info['low'])},"
+                f"h:{json.dumps(info['high'])},"
+                f"a:{json.dumps(info['amounts'])},"
+                f"lc:{json.dumps(info['latest_close'])},"
+                f"pct:{json.dumps(info['pct_changes'])},"
+                f"cum5d:{json.dumps(info['cum5d'])}"
+                f"}}"
+            )
+        return "var STOCK_MAP={"+",".join(lines)+"};"
+
+    stock_js_block = _make_stock_js() if stock_map else "var STOCK_MAP={};"
+    sector_json = json.dumps(sector_data, ensure_ascii=False)
+    theme_order_json = json.dumps(theme_order, ensure_ascii=False)
+    strongest_sector = sector_data[0]["name"] if sector_data else ""
+    stock_count = len(stock_map)
+
     html = f"""<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -457,6 +624,29 @@ body{{background:#0a0e17;color:#e0e6ed;font-family:'Fira Sans',-apple-system,san
 .tooltip-hint:hover .tooltip-text{{visibility:visible;opacity:1}}
 .tooltip-text{{visibility:hidden;opacity:0;position:absolute;bottom:140%;left:50%;transform:translateX(-50%);background:#1e293b;color:#e0e6ed;font-size:11px;font-weight:400;padding:5px 10px;border-radius:6px;border:1px solid #334155;white-space:nowrap;z-index:100;transition:opacity .15s;pointer-events:none}}
 .tooltip-text::after{{content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:#334155}}
+
+/* Theme pills */
+.theme-pills{{display:flex;gap:6px;padding:0 24px 14px;flex-wrap:wrap}}
+.theme-pill{{padding:5px 14px;border-radius:16px;font-size:12px;background:transparent;color:#94a3b8;border:1px solid #334155;cursor:pointer;transition:all .2s;font-family:inherit;white-space:nowrap}}
+.theme-pill:hover{{border-color:#3b82f6;color:#e0e6ed}}
+.theme-pill.active{{background:#1d4ed8;border-color:#3b82f6;color:#fff}}
+
+/* Stock card grid */
+.stock-grid{{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px;padding:0 24px 16px;max-width:1800px}}
+.stock-card{{background:#111827;border:1px solid #1e2a3a;border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;min-width:0}}
+.stock-card:hover{{border-color:#3b82f6}}
+.stock-card .stock-header{{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:2px}}
+.stock-card .stock-name{{font-size:13px;font-weight:600;color:#e0e6ed;line-height:1.3}}
+.stock-card .stock-code{{font-size:11px;color:#6b7d95;margin-left:6px;font-weight:400}}
+.stock-card .stock-theme{{font-size:10px;color:#4b5563;margin-top:1px}}
+.stock-card .stock-price{{font-size:12px;color:#6b7d95;text-align:right;white-space:nowrap}}
+.stock-card .stock-price .val{{font-size:15px;font-weight:600;color:#f0f4f8}}
+.stock-card .stock-price .pct{{font-size:12px;margin-left:4px;font-weight:600}}
+.stock-chart{{height:200px;margin-top:2px}}
+
+/* Sector table rows */
+.sector-row{{cursor:pointer;transition:background .15s}}
+.sector-row:hover td{{background:#1a2744 !important}}
 </style>
 </head>
 <body>
@@ -512,18 +702,20 @@ body{{background:#0a0e17;color:#e0e6ed;font-family:'Fira Sans',-apple-system,san
 
 <!-- ====== Tab 3: 板块数据 ====== -->
 <div class="tab-pane" id="tab-sector">
-  <div class="empty-state">
-    <div class="icon">📊</div>
-    <p>板块数据建设中，敬请期待</p>
+  <div class="rank-wrap" style="max-height:none">
+    <table class="rank-table" id="sector-table">
+      <thead><tr>
+        <th>题材名称</th><th>状态</th><th>近5日涨幅</th><th>涨超5%占比</th><th>明星标的</th>
+      </tr></thead>
+      <tbody id="sector-table-body"></tbody>
+    </table>
   </div>
 </div>
 
 <!-- ====== Tab 4: 个股数据 ====== -->
 <div class="tab-pane" id="tab-stock">
-  <div class="empty-state">
-    <div class="icon">📈</div>
-    <p>个股数据建设中，敬请期待</p>
-  </div>
+  <div class="theme-pills" id="theme-pills"></div>
+  <div class="stock-grid" id="grid-stock"></div>
 </div>
 
 <!-- ====== Tab 5: 大宗交易 ====== -->
@@ -538,6 +730,9 @@ body{{background:#0a0e17;color:#e0e6ed;font-family:'Fira Sans',-apple-system,san
 </div>
 
 <script>
+// ========== 个股数据 (内嵌 STOCK_MAP) ==========
+{stock_js_block}
+
 // ========== 风险标签 ==========
 var _riskState = {{"manual":[],"deleted":[]}};
 
@@ -665,6 +860,8 @@ function switchTab(name) {{
   if (!_tabRendered[name]) {{
     _tabRendered[name] = true;
     if (name==='etf') buildEtfGrid();
+    if (name==='sector') buildSectorTable();
+    if (name==='stock') buildStockTab();
     if (name==='block') buildBlockTable();
     if (name==='monitor') buildMonitorTab();
   }}
@@ -1022,6 +1219,222 @@ function toggleTheme(row) {{
     n = n.nextElementSibling;
   }}
 }}
+
+// ========== 板块数据表格 ==========
+function buildSectorTable() {{
+  var data = {sector_json};
+  var el = document.getElementById('sector-table-body');
+  if (!el || !data.length) {{
+    if (el) el.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:24px;color:#6b7d95">暂无板块数据</td></tr>';
+    return;
+  }}
+  var h = '';
+  data.forEach(function(s) {{
+    h += '<tr class="sector-row" onclick="switchTabWithTheme(&quot;stock&quot;,&quot;' + s.name.replace(/"/g,'&quot;') + '&quot;)" title="点击查看该题材个股">';
+    h += '<td style="font-weight:600">' + s.name + '</td>';
+    h += '<td>' + s.status + '</td>';
+    h += '<td>' + s.ret_5d + '</td>';
+    h += '<td>' + s.gt5_pct + '</td>';
+    h += '<td style="font-size:11px;color:#6b7d95;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + s.stars + '</td>';
+    h += '</tr>';
+  }});
+  el.innerHTML = h;
+}}
+
+// ========== 个股数据卡片 ==========
+var _stockTabBuilt = false;
+var _stockThemeOrder = {theme_order_json};
+var _stockDefaultTheme = '{strongest_sector}';
+
+function buildStockTab() {{
+  if (_stockTabBuilt) return;
+  _stockTabBuilt = true;
+
+  // 1. 题材切换按钮 (默认选中最强板块)
+  var pillEl = document.getElementById('theme-pills');
+  if (pillEl) {{
+    var defaultTheme = _stockDefaultTheme || '全部';
+    var ph = '<span class="theme-pill" data-theme="全部" onclick="renderStockCards(&quot;全部&quot;)">全部</span>';
+    _stockThemeOrder.forEach(function(t) {{
+      var activeClass = (t === defaultTheme) ? ' active' : '';
+      ph += '<span class="theme-pill' + activeClass + '" data-theme="' + t.replace(/"/g,'&quot;') + '" onclick="renderStockCards(&quot;' + t.replace(/"/g,'&quot;') + '&quot;)">' + t + '</span>';
+    }});
+    pillEl.innerHTML = ph;
+  }}
+
+  // 2. 卡片容器 (按5日涨幅降序)
+  var grid = document.getElementById('grid-stock');
+  if (!grid) return;
+  var h = '';
+  var names = Object.keys(STOCK_MAP);
+  names.sort(function(a,b) {{
+    var ca = STOCK_MAP[a].cum5d, cb = STOCK_MAP[b].cum5d;
+    if (ca == null && cb == null) return 0;
+    if (ca == null) return 1;
+    if (cb == null) return -1;
+    return cb - ca;
+  }});
+  names.forEach(function(name) {{
+    var info = STOCK_MAP[name];
+    var lc = info.lc;
+    var pct = (info.pct && info.pct.length) ? info.pct[info.pct.length - 1] : 0;
+    var pctCls = pct > 0 ? 'up' : pct < 0 ? 'down' : '';
+    var sign = pct > 0 ? '+' : '';
+    var priceStr = (lc != null) ? lc.toFixed(2) : '-';
+    var safeName = name.replace(/[^a-zA-Z0-9\\u4e00-\\u9fff]/g, '_');
+    h += '<div class="stock-card" data-themes="' + info.s.replace(/'/g,"\\'") + '">';
+    h += '<div class="stock-header">';
+    h += '<div><div class="stock-name">' + name + '<span class="stock-code">' + info.c + '</span></div>';
+    h += '<div class="stock-theme">' + info.s + '</div></div>';
+    h += '<div class="stock-price"><span class="val">' + priceStr + '</span>';
+    h += '<span class="pct ' + pctCls + '">' + sign + pct.toFixed(2) + '%</span></div>';
+    h += '</div>';
+    h += '<div class="stock-chart" id="sc_' + safeName + '"></div>';
+    h += '</div>';
+  }});
+  grid.innerHTML = h;
+
+  // 3. 初始化图表 (仅默认选中板块的可见图表)
+  var defaultTheme = _stockDefaultTheme || '全部';
+  var initNames = (defaultTheme === '全部') ? names : names.filter(function(n) {{
+    return STOCK_MAP[n].s === defaultTheme;
+  }});
+  initNames.forEach(function(name) {{
+    var safeName = name.replace(/[^a-zA-Z0-9\\u4e00-\\u9fff]/g, '_');
+    makeStockChart('sc_' + safeName, STOCK_MAP[name]);
+  }});
+
+  // 4. 默认筛选到最强板块
+  if (defaultTheme !== '全部') {{
+    renderStockCards(defaultTheme);
+  }}
+}}
+
+function makeStockChart(domId, info) {{
+  var dom = document.getElementById(domId);
+  if (!dom || !info) return;
+  var d = info.d, o = info.o, cl = info.cl, l = info.l, h = info.h, a = info.a;
+  if (!d || !d.length) return;
+
+  var kdata = [], vdata = [], hasValid = false;
+  for (var i = 0; i < d.length; i++) {{
+    var ov = (o && o[i] != null) ? o[i] : null;
+    var cv = (cl && cl[i] != null) ? cl[i] : null;
+    var lv = (l && l[i] != null) ? l[i] : null;
+    var hv = (h && h[i] != null) ? h[i] : null;
+    var av = (a && a[i] != null) ? a[i] : 0;
+    if (ov != null && cv != null) {{
+      hasValid = true;
+      kdata.push([ov, cv, lv != null ? lv : Math.min(ov, cv), hv != null ? hv : Math.max(ov, cv)]);
+      vdata.push(av);
+    }} else {{
+      kdata.push(['-','-','-','-']);
+      vdata.push(0);
+    }}
+  }}
+  if (!hasValid) return;
+
+  var UP = '#ef4444', DOWN = '#10b981';
+  var chart = echarts.init(dom, null, {{renderer:'canvas'}});
+  chart.setOption({{
+    animation: false,
+    backgroundColor: 'transparent',
+    grid: [
+      {{left:4,right:4,top:2,height:'60%'}},
+      {{left:4,right:4,top:'70%',height:'26%'}}
+    ],
+    xAxis: [
+      {{type:'category',data:d,gridIndex:0,axisLine:{{show:false}},axisTick:{{show:false}},axisLabel:{{show:false}},splitLine:{{show:false}}}},
+      {{type:'category',data:d,gridIndex:1,axisLine:{{show:false}},axisTick:{{show:false}},axisLabel:{{show:false}},splitLine:{{show:false}}}}
+    ],
+    yAxis: [
+      {{type:'value',gridIndex:0,splitNumber:3,axisLabel:{{fontSize:9,color:'#6b7d95'}},splitLine:{{lineStyle:{{color:'#1e2a3a',type:'dashed'}}}},position:'right',scale:true}},
+      {{type:'value',gridIndex:1,splitNumber:2,axisLabel:{{fontSize:8,color:'#6b7d95',formatter:function(v){{return v>=10000?(v/10000).toFixed(1)+'亿':v.toFixed(0)+'万'}}}},splitLine:{{show:false}},position:'right'}}
+    ],
+    series: [
+      {{
+        type:'candlestick',xAxisIndex:0,yAxisIndex:0,data:kdata,
+        itemStyle:{{color:UP,color0:DOWN,borderColor:UP,borderColor0:DOWN}},
+        barWidth:'60%',markPoint:{{silent:true,symbol:'none',label:{{show:false}}}}
+      }},
+      {{
+        type:'bar',xAxisIndex:1,yAxisIndex:1,data:vdata,
+        itemStyle:{{color:function(p){{var i=p.dataIndex;return(i<kdata.length&&kdata[i][1]>=kdata[i][0])?UP:DOWN;}},opacity:0.3}},
+        barWidth:'60%'
+      }}
+    ],
+    tooltip:{{
+      trigger:'axis',axisPointer:{{type:'shadow',shadowStyle:{{color:'rgba(200,200,200,0.08)'}}}},
+      backgroundColor:'#1e293b',borderColor:'#334155',
+      textStyle:{{fontSize:11,color:'#e0e6ed'}},
+      formatter:function(params){{
+        var cs=null,date='';
+        for(var j=0;j<params.length;j++){{
+          if(params[j].seriesType==='candlestick')cs=params[j];
+          date=params[j].axisValue;
+        }}
+        var k=cs?(cs.value||cs.data):null;
+        if(!k||k.length<5||typeof k[1]!=='number')return date;
+        return date+'<br/>开 '+k[1].toFixed(2)+'<br/>收 '+k[2].toFixed(2)+'<br/>高 '+k[4].toFixed(2)+'<br/>低 '+k[3].toFixed(2);
+      }}
+    }}
+  }});
+
+  var timer;
+  var ro = new ResizeObserver(function(){{clearTimeout(timer);timer=setTimeout(function(){{chart.resize();}},100);}});
+  ro.observe(dom);
+}}
+
+// ========== 题材筛选 & 联动 ==========
+function renderStockCards(themeName) {{
+  document.querySelectorAll('.theme-pill').forEach(function(p) {{
+    p.classList.remove('active');
+    if (p.getAttribute('data-theme') === themeName) p.classList.add('active');
+  }});
+  document.querySelectorAll('.stock-card').forEach(function(card) {{
+    if (themeName === '全部') {{
+      card.style.display = '';
+    }} else {{
+      var themes = card.getAttribute('data-themes') || '';
+      card.style.display = themes.indexOf(themeName) >= 0 ? '' : 'none';
+    }}
+  }});
+  setTimeout(function() {{
+    document.querySelectorAll('.stock-card:not([style*="display: none"]) .stock-chart').forEach(function(d) {{
+      var chart = echarts.getInstanceByDom(d);
+      if (!chart) {{
+        var card = d.closest('.stock-card');
+        var stockName = card.querySelector('.stock-name').firstChild.textContent.trim();
+        var info = STOCK_MAP[stockName];
+        if (info) {{
+          makeStockChart(d.id, info);
+          chart = echarts.getInstanceByDom(d);
+        }}
+      }}
+      if (chart) chart.resize();
+    }});
+  }}, 80);
+}}
+window.renderStockCards = renderStockCards;
+
+function switchTabWithTheme(tabName, themeName) {{
+  switchTab(tabName);
+  if (tabName === 'stock' && themeName) {{
+    buildStockTab();
+    var pills = document.querySelectorAll('.theme-pill');
+    var found = false;
+    pills.forEach(function(p) {{
+      p.classList.remove('active');
+      if (p.getAttribute('data-theme') === themeName) {{ p.classList.add('active'); found = true; }}
+    }});
+    if (!found) {{
+      var allBtn = document.querySelector('.theme-pill[data-theme="全部"]');
+      if (allBtn) allBtn.classList.add('active');
+    }}
+    renderStockCards(found ? themeName : '全部');
+  }}
+}}
+window.switchTabWithTheme = switchTabWithTheme;
 
 // ========== 重点监控 ==========
 var _monitorData = [];

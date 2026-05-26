@@ -4,7 +4,7 @@
 大盘指数 + ETF 数据获取：日线 OHLCV + 分钟级分时
 指数分钟线: 腾讯 m1（交易日当天完整）
 ETF 分钟线: 腾讯 m5
-数据来源: Sina(指数日线) + 腾讯(分钟线+ETF日线) + 10jqka(同花顺全A)
+数据来源: Sina(指数日线) + 腾讯(分钟线+ETF日线)
 
 用法:
     python index_data.py                 # 默认获取最新交易日数据
@@ -82,39 +82,6 @@ def get_daily_sina_all(sina_code):
                 "开盘": o, "收盘": c, "最高": h, "最低": l,
                 "成交量": vol, "成交量_亿手": round(vol / 1e10, 2),
                 "成交额": amt, "成交额_亿": round(amt / 1e8, 1) if amt else 0,
-            })
-        return result
-    except Exception:
-        return []
-
-
-def get_daily_ths_quana():
-    """同花顺全A 日线: 返回 2026年全量历史 [{日期,开盘,收盘,最高,最低,成交量,成交额,...}]"""
-    try:
-        url = "https://d.10jqka.com.cn/v6/line/bk_883957/01/last.js"
-        r = requests.get(url, headers={"User-Agent": "Mozilla/5.0", "Referer": "https://www.10jqka.com.cn/"}, timeout=15)
-        text = re.sub(r"/\*.*?\*/", "", r.text, flags=re.DOTALL)
-        text = re.sub(r"^[^(]*\(", "", text)
-        text = re.sub(r"\)[^)]*$", "", text)
-        data = json.loads(text)
-        raw = data.get("data", "").strip().split(";")
-        if not raw or not raw[0].strip():
-            return []
-        result = []
-        for line in raw:
-            parts = line.strip().split(",")
-            if len(parts) < 7:
-                continue
-            dt = parts[0]
-            if dt < "20260101":  # 只保留 2026 年
-                continue
-            vol, amt = float(parts[5]), float(parts[6])
-            result.append({
-                "日期": f"{dt[:4]}-{dt[4:6]}-{dt[6:8]}",
-                "开盘": float(parts[1]), "收盘": float(parts[4]),
-                "最高": float(parts[2]), "最低": float(parts[3]),
-                "成交量": vol, "成交量_亿手": round(vol / 1e10, 2),
-                "成交额": amt, "成交额_亿": round(amt / 1e8, 1),
             })
         return result
     except Exception:
@@ -263,6 +230,23 @@ def get_minute_etf(code, date_str=""):
 
 INDEX_DAILY_FIELDS = ["指数", "日期", "开盘", "收盘", "最高", "最低", "成交量", "成交量_亿手", "成交额", "成交额_亿"]
 
+ETF_DAILY_FIELDS = ["名称", "代码", "日期", "开盘", "收盘", "最高", "最低", "成交量", "成交量_万手", "成交额", "成交额_亿"]
+
+
+def save_etf_daily(name, code, row):
+    """保存 ETF 日线: 追加到日期文件，已存在则跳过"""
+    fd = row["日期"]
+    path = os.path.join(OUT_DIR, f"etf_daily_{fd}.csv")
+    out = {k: row.get(k, "") for k in ETF_DAILY_FIELDS if k not in ("名称", "代码")}
+    out["名称"] = name
+    out["代码"] = code
+    if os.path.exists(path):
+        with open(path, encoding="utf-8-sig") as fh:
+            for existing in csv.DictReader(fh):
+                if existing.get("名称") == name and existing.get("日期") == fd:
+                    return
+    _append_row(path, out, ETF_DAILY_FIELDS)
+
 
 def save_index_daily_all(name, rows):
     """保存指数全量日线: 每条追加到各自日期文件，已存在则跳过"""
@@ -284,10 +268,12 @@ def save_index_daily_all(name, rows):
     return len(rows)
 
 
-def _append_row(path, row):
+def _append_row(path, row, fieldnames=None):
+    if fieldnames is None:
+        fieldnames = INDEX_DAILY_FIELDS
     file_exists = os.path.exists(path)
     with open(path, "a" if file_exists else "w", newline="", encoding="utf-8-sig") as f:
-        w = csv.DictWriter(f, fieldnames=INDEX_DAILY_FIELDS, extrasaction='ignore')
+        w = csv.DictWriter(f, fieldnames=fieldnames, extrasaction='ignore')
         if not file_exists:
             w.writeheader()
         w.writerow(row)
@@ -404,28 +390,10 @@ def main():
         all_data.append({"name": name, "daily": rows, "minutes": minutes_m1,
                          "minutes_m5": minutes_m5, "prefix": "index"})
 
-    # 同花顺全A
-    print(f"\n[同花顺全A] (10jqka)")
-    ths_all = get_daily_ths_quana()
-    if ths_all:
-        latest_ths = ths_all[-1]
-        if args.backfill:
-            print(f"  {len(ths_all)}条 ({ths_all[0]['日期']}~{latest_ths['日期']}) "
-                  f"C={latest_ths['收盘']:.2f} Amt={latest_ths.get('成交额_亿','?')}亿")
-            save_index_daily_all("同花顺全A", ths_all)
-        else:
-            print(f"  {latest_ths['日期']} C={latest_ths['收盘']:.2f} Amt={latest_ths.get('成交额_亿','?')}亿")
-            save_index_daily_all("同花顺全A", [latest_ths])
-        print(f"  ⚠ 分时数据: 同花顺全A 无 TX 分钟线接口，跳过")
-    else:
-        print(f"  ❌ 获取失败")
-    all_data.append({"name": "同花顺全A", "daily": ths_all, "minutes": [], "prefix": "index"})
-
-    # 上涨/下跌家数 (日期优先用页面提取，其次用 THS 最新交易日)
+    # 上涨/下跌家数
     breadth = get_market_breadth()
     if breadth:
-        fallback_date = (ths_all[-1]["日期"] if ths_all else 
-                        datetime.now().strftime("%Y-%m-%d"))
+        fallback_date = all_data[0]["daily"][-1]["日期"] if all_data[0]["daily"] else datetime.now().strftime("%Y-%m-%d")
         bd = breadth.pop("日期", fallback_date)
         save_market_breadth(breadth, bd)
         parts = "  ".join(f"{k}{v}" for k, v in breadth.items())
@@ -439,6 +407,7 @@ def main():
             if daily:
                 print(f"  {daily['日期']} O={daily['开盘']:.3f} C={daily['收盘']:.3f} "
                       f"Vol={daily.get('成交量_万手','?')}万手")
+                save_etf_daily(name, code, daily)
             else:
                 print(f"  ❌ 日线获取失败")
             minutes = []

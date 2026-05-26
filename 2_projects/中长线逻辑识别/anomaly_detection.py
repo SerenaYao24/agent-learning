@@ -343,7 +343,7 @@ def _infer_color_from_price(minute_data):
 
 def check_index_volume(date_str, date_label):
     """
-    检测同花顺全A 成交额异常：
+    检测市场总成交额异常（总成交额 = (上证+深证)*1.01）：
     - 当日成交额 > 3万亿
     - 当日成交额 > 前5日均值 ×1.1
     """
@@ -351,19 +351,26 @@ def check_index_volume(date_str, date_label):
 
     # 当日数据
     today_idx = read_index_daily(date_str)
-    ths = today_idx.get("同花顺全A")
-    if not ths or ths.get("成交额_亿", 0) <= 0:
-        print("  ⚠ 同花顺全A 数据缺失，跳过")
+    sh_today = today_idx.get("上证指数")
+    sz_today = today_idx.get("深证成指")
+    if not sh_today or not sz_today:
+        print("  ⚠ 上证/深证数据缺失，跳过")
         return alerts
 
-    today_amt = ths["成交额_亿"]  # 单位：亿元
+    sh_amt = sh_today.get("成交额_亿", 0) or 0
+    sz_amt = sz_today.get("成交额_亿", 0) or 0
+    if sh_amt <= 0 or sz_amt <= 0:
+        print("  ⚠ 上证/深证成交额缺失，跳过")
+        return alerts
+
+    today_amt = (sh_amt + sz_amt) * 1.01  # 亿元
 
     # 情境 1: 超过 3w 亿
     if today_amt >= 30000:
         alerts.append({
             "type": "both",
             "label": f"{date_label}：市场成交额超过3w亿",
-            "detail": f"同花顺全A 当日成交额 {today_amt:.0f} 亿",
+            "detail": f"市场总成交额 {today_amt:.0f} 亿",
         })
 
     # 情境 2: 超过前 5 日均值的 1.1 倍
@@ -371,9 +378,13 @@ def check_index_volume(date_str, date_label):
     prev_amts = []
     for pd_date in prev_dates:
         pd_data = read_index_daily(pd_date)
-        pd_ths = pd_data.get("同花顺全A")
-        if pd_ths and pd_ths.get("成交额_亿", 0) > 0:
-            prev_amts.append(pd_ths["成交额_亿"])
+        pd_sh = pd_data.get("上证指数")
+        pd_sz = pd_data.get("深证成指")
+        if pd_sh and pd_sz:
+            p_sh = pd_sh.get("成交额_亿", 0) or 0
+            p_sz = pd_sz.get("成交额_亿", 0) or 0
+            if p_sh > 0 and p_sz > 0:
+                prev_amts.append((p_sh + p_sz) * 1.01)
 
     if len(prev_amts) >= 3:
         avg_amt = sum(prev_amts) / len(prev_amts)
@@ -381,7 +392,7 @@ def check_index_volume(date_str, date_label):
             alerts.append({
                 "type": "both",
                 "label": f"{date_label}：市场成交额放大",
-                "detail": f"同花顺全A 当日 {today_amt:.0f} 亿 vs 前{len(prev_amts)}日均 {avg_amt:.0f} 亿 (倍数:{today_amt/avg_amt:.2f}x)",
+                "detail": f"市场总成交额 {today_amt:.0f} 亿 vs 前{len(prev_amts)}日均 {avg_amt:.0f} 亿 (倍数:{today_amt/avg_amt:.2f}x)",
             })
 
     return alerts
@@ -508,8 +519,8 @@ def check_panic_sell(date_str, date_label):
     """
     放量下跌检测：
     - 上涨家数从 3000+ → <1000
-    - 上证和同花顺全A 均下跌
-    - 同花顺全A 量能放大 >1.15 / >1.25 倍前日
+    - 上证和深证 均下跌
+    - 总成交额放大 >1.15 / >1.25 倍前日（总成交额 = (上证+深证)*1.01）
     """
     alerts = []
 
@@ -547,40 +558,45 @@ def check_panic_sell(date_str, date_label):
     today_idx = read_index_daily(date_str)
     prev_idx = read_index_daily(prev_date)
 
-    sz_today = today_idx.get("上证指数", {})
-    sz_prev = prev_idx.get("上证指数", {})
-    ths_today = today_idx.get("同花顺全A", {})
-    ths_prev = prev_idx.get("同花顺全A", {})
+    sh_today = today_idx.get("上证指数", {})
+    sh_prev = prev_idx.get("上证指数", {})
+    sz_today = today_idx.get("深证成指", {})
+    sz_prev = prev_idx.get("深证成指", {})
 
-    # 上证和同花顺全A 均下跌
+    # 上证和深证 均下跌
+    sh_close_t = sh_today.get("收盘", 0)
+    sh_close_p = sh_prev.get("收盘", 0)
     sz_close_t = sz_today.get("收盘", 0)
     sz_close_p = sz_prev.get("收盘", 0)
-    ths_close_t = ths_today.get("收盘", 0)
-    ths_close_p = ths_prev.get("收盘", 0)
 
-    if not (sz_close_t < sz_close_p and ths_close_t < ths_close_p):
+    if not (sh_close_t < sh_close_p and sz_close_t < sz_close_p):
         return alerts
 
-    # 同花顺全A 量能对比
-    ths_amt_t = ths_today.get("成交额_亿", 0)
-    ths_amt_p = ths_prev.get("成交额_亿", 0)
+    # 总成交额 = (上证+深证) * 1.01
+    def _total_amt(idx):
+        sh_a = idx.get("上证指数", {}).get("成交额_亿", 0) or 0
+        sz_a = idx.get("深证成指", {}).get("成交额_亿", 0) or 0
+        return (sh_a + sz_a) * 1.01
 
-    if ths_amt_p <= 0:
+    total_t = _total_amt(today_idx)
+    total_p = _total_amt(prev_idx)
+
+    if total_p <= 0:
         return alerts
 
-    ratio = ths_amt_t / ths_amt_p
+    ratio = total_t / total_p
 
     if ratio >= 1.25:
         alerts.append({
             "type": "risk",
             "label": f"{date_label}：放量下跌，有恐慌盘",
-            "detail": f"上涨{prev_up}→{today_up}，全A成交额{ths_amt_t:.0f}亿/前日{ths_amt_p:.0f}亿={ratio:.2f}x",
+            "detail": f"上涨{prev_up}→{today_up}，总成交额{total_t:.0f}亿/前日{total_p:.0f}亿={ratio:.2f}x",
         })
     elif ratio >= 1.15:
         alerts.append({
             "type": "risk",
             "label": f"{date_label}：放量下跌",
-            "detail": f"上涨{prev_up}→{today_up}，全A成交额{ths_amt_t:.0f}亿/前日{ths_amt_p:.0f}亿={ratio:.2f}x",
+            "detail": f"上涨{prev_up}→{today_up}，总成交额{total_t:.0f}亿/前日{total_p:.0f}亿={ratio:.2f}x",
         })
 
     return alerts

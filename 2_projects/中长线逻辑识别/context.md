@@ -90,7 +90,7 @@ python index_data.py --no-minute         # 仅日线
 python index_data.py --no-etf            # 跳过 ETF
 ```
 
-覆盖上证/深证/创业板/科创综指/同花顺全A + 6只ETF。指数分钟线 m1，ETF 分钟线 m5。同花顺全A 无分钟线。上涨/下跌/涨停/跌停家数从短线侠 qxlive 获取。成交额：上证/科创综指用 stock_zh_a_daily 真实数据，深证/创业板用 Sina 实时比校准，同花顺全A 用 10jqka。
+覆盖上证/深证/创业板/科创综指 + 6只ETF。指数分钟线 m1，ETF 分钟线 m5。上涨/下跌/涨停/跌停家数从短线侠 qxlive 获取。成交额：上证/科创综指用 stock_zh_a_daily 真实数据，深证/创业板用 Sina 实时比校准。总成交额 = (上证+深证) * 1.01。
 
 ### 6. MA5 公式计算（备用）
 
