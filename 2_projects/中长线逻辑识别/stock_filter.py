@@ -499,6 +499,55 @@ def save_filter_result(md_text, date_str):
 
 # ── 主交互 ──────────────────────────────────────────────
 
+def run_all_filters(date_str=None, save_tags_path=None):
+    """非交互模式：运行所有筛选器，返回 {filter_name: [sector_names]}"""
+    if not date_str:
+        date_str = find_latest_date()
+    if not date_str:
+        print("❌ 无法确定报告日期")
+        return {}
+
+    content = load_report(date_str)
+    if not content.get("multi"):
+        print("❌ 多日分析报告加载失败")
+        return {}
+
+    sectors = parse_sector_table(content["multi"])
+    details = parse_detail_table(content.get("multi_detail") or "") if content.get("multi_detail") else []
+
+    sector_map = load_sector_map()
+    stock_windows = load_stock_windows(date_str)
+    daily_changes = load_stock_daily_changes(date_str)
+
+    ctx = {
+        "sector_map": sector_map,
+        "stock_windows": stock_windows,
+        "daily_changes": daily_changes,
+    }
+
+    print(f"📅 报告日期: {date_str} | 题材: {len(sectors)} | 标的: {len(details)}")
+
+    all_tags = {}
+    for name, func in FILTERS.items():
+        result, title = func(sectors, details, content, ctx)
+        sector_names = [r["name"] for r in result]
+        all_tags[name] = sector_names
+        print(f"  {name}: {len(result)} 个 → {', '.join(sector_names[:5])}{'...' if len(sector_names) > 5 else ''}")
+
+        # 保存 md 到文件
+        md_output = format_filter_result_md(result, title, date_str)
+        save_filter_result(md_output, date_str)
+
+    # 保存标签 JSON 供 dashboard 使用
+    if save_tags_path and all_tags:
+        os.makedirs(os.path.dirname(save_tags_path), exist_ok=True)
+        with open(save_tags_path, "w", encoding="utf-8") as f:
+            json.dump(all_tags, f, ensure_ascii=False)
+        print(f"✅ 筛选标签已保存 → {save_tags_path}")
+
+    return all_tags
+
+
 def main():
     # 解析命令行参数
     date_str = None
@@ -511,6 +560,11 @@ def main():
                 date_str = f"{year}-{date_str_raw}"
             else:
                 date_str = date_str_raw
+
+    if "--all" in sys.argv:
+        save_tags = os.path.join(BASE_DIR, ".index_data", "filter_tags.json") if "--save-tags" in sys.argv else None
+        run_all_filters(date_str, save_tags_path=save_tags)
+        return
 
     if not date_str:
         date_str = find_latest_date()

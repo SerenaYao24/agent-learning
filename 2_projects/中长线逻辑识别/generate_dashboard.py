@@ -13,6 +13,7 @@ RISK_TAGS_FILE = os.path.join(DATA_DIR, "risk_tags.json")
 MONITOR_FILE = os.path.join(DATA_DIR, "monitor.json")
 OPP_TAGS_FILE = os.path.join(DATA_DIR, "opp_tags.json")
 INDEX_STATE_FILE = os.path.join(DATA_DIR, "index_state.json")
+FILTER_TAGS_FILE = os.path.join(INDEX_DIR, "filter_tags.json")
 STOCK_DAYS = 20
 
 
@@ -46,6 +47,12 @@ def load_index_state():
             return json.load(f)
     return {"state": "区间震荡"}
 
+
+def load_filter_tags():
+    if os.path.exists(FILTER_TAGS_FILE):
+        with open(FILTER_TAGS_FILE, encoding="utf-8") as f:
+            return json.load(f)
+    return {}
 
 
 def load_watched_stocks():
@@ -115,11 +122,17 @@ def parse_sector_overview(report_path):
                 # cells: [题材名称, 状态, d1, d2, d3, d4, d5, 近5日涨幅, 涨超5%占比, 明星标的]
                 name = re.sub(r'\*+', '', cells[0]).strip()
                 status = re.sub(r'<[^>]+>', '', cells[1]).replace('**', '').strip()
+                d1 = cells[2].strip()
+                d2 = cells[3].strip()
+                d3 = cells[4].strip()
+                d4 = cells[5].strip()
+                d5 = cells[6].strip()
                 ret_5d = cells[-3].strip()
                 gt5_pct = cells[-2].strip()
                 stars = cells[-1].strip()
                 sectors.append({
                     "name": name, "status": status,
+                    "d1": d1, "d2": d2, "d3": d3, "d4": d4, "d5": d5,
                     "ret_5d": ret_5d, "gt5_pct": gt5_pct, "stars": stars,
                 })
     return sectors
@@ -527,9 +540,27 @@ def build_html():
 
     stock_js_block = _make_stock_js() if stock_map else "var STOCK_MAP={};"
     sector_json = json.dumps(sector_data, ensure_ascii=False)
-    theme_order_json = json.dumps(theme_order, ensure_ascii=False)
-    strongest_sector = sector_data[0]["name"] if sector_data else ""
+
+    # 计算每个题材的日平均涨幅 (d1-d5)，按降序排列 pills
+    theme_avg_map = {}
+    for s in sector_data:
+        vals = []
+        for key in ["d1", "d2", "d3", "d4", "d5"]:
+            v = s.get(key, "")
+            if v and v != "-":
+                try:
+                    vals.append(float(v.replace("%", "")))
+                except ValueError:
+                    pass
+        if vals:
+            theme_avg_map[s["name"]] = round(sum(vals) / len(vals), 2)
+    theme_order_sorted = sorted(theme_order, key=lambda t: theme_avg_map.get(t, -999), reverse=True)
+    theme_order_json = json.dumps(theme_order_sorted, ensure_ascii=False)
+    theme_avg_json = json.dumps(theme_avg_map, ensure_ascii=False)
+    strongest_sector = theme_order_sorted[0] if theme_order_sorted else ""
     stock_count = len(stock_map)
+    filter_tags = load_filter_tags()
+    filter_tags_json = json.dumps(filter_tags, ensure_ascii=False)
 
     html = f"""<!DOCTYPE html>
 <html lang="zh-CN">
@@ -627,9 +658,11 @@ body{{background:#0a0e17;color:#e0e6ed;font-family:'Fira Sans',-apple-system,san
 
 /* Theme pills */
 .theme-pills{{display:flex;gap:6px;padding:0 24px 14px;flex-wrap:wrap}}
-.theme-pill{{padding:5px 14px;border-radius:16px;font-size:12px;background:transparent;color:#94a3b8;border:1px solid #334155;cursor:pointer;transition:all .2s;font-family:inherit;white-space:nowrap}}
+.theme-pill{{position:relative;padding:5px 14px;border-radius:16px;font-size:12px;background:transparent;color:#94a3b8;border:1px solid #334155;cursor:pointer;transition:all .2s;font-family:inherit;white-space:nowrap}}
 .theme-pill:hover{{border-color:#3b82f6;color:#e0e6ed}}
 .theme-pill.active{{background:#1d4ed8;border-color:#3b82f6;color:#fff}}
+.filter-dot{{position:absolute;top:-3px;right:-3px;width:8px;height:8px;border-radius:50%;background:#10b981;border:1px solid #0a0e17;cursor:help}}
+.filter-tag{{display:inline-block;margin-left:4px;padding:1px 6px;border-radius:8px;font-size:10px;font-weight:500;background:#0a2a1a;color:#10b981;border:1px solid #1a4a2a;vertical-align:middle}}
 
 /* Stock card grid */
 .stock-grid{{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px;padding:0 24px 16px;max-width:1800px}}
@@ -642,6 +675,8 @@ body{{background:#0a0e17;color:#e0e6ed;font-family:'Fira Sans',-apple-system,san
 .stock-card .stock-price{{font-size:12px;color:#6b7d95;text-align:right;white-space:nowrap}}
 .stock-card .stock-price .val{{font-size:15px;font-weight:600;color:#f0f4f8}}
 .stock-card .stock-price .pct{{font-size:12px;margin-left:4px;font-weight:600}}
+.stock-card .stock-price .pct.up{{color:#ef4444}}
+.stock-card .stock-price .pct.down{{color:#10b981}}
 .stock-chart{{height:200px;margin-top:2px}}
 
 /* Sector table rows */
@@ -705,7 +740,7 @@ body{{background:#0a0e17;color:#e0e6ed;font-family:'Fira Sans',-apple-system,san
   <div class="rank-wrap" style="max-height:none">
     <table class="rank-table" id="sector-table">
       <thead><tr>
-        <th>题材名称</th><th>状态</th><th>近5日涨幅</th><th>涨超5%占比</th><th>明星标的</th>
+        <th>题材名称</th><th>状态</th><th>d1</th><th>d2</th><th>d3</th><th>d4</th><th>d5</th><th>近5日涨幅</th><th>涨超5%占比</th><th>明星标的</th>
       </tr></thead>
       <tbody id="sector-table-body"></tbody>
     </table>
@@ -1225,14 +1260,26 @@ function buildSectorTable() {{
   var data = {sector_json};
   var el = document.getElementById('sector-table-body');
   if (!el || !data.length) {{
-    if (el) el.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:24px;color:#6b7d95">暂无板块数据</td></tr>';
+    if (el) el.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:24px;color:#6b7d95">暂无板块数据</td></tr>';
     return;
   }}
   var h = '';
   data.forEach(function(s) {{
     h += '<tr class="sector-row" onclick="switchTabWithTheme(&quot;stock&quot;,&quot;' + s.name.replace(/"/g,'&quot;') + '&quot;)" title="点击查看该题材个股">';
-    h += '<td style="font-weight:600">' + s.name + '</td>';
+    var ftags = _stockFilterTags;
+    var tagHtml = '';
+    for (var fk in ftags) {{
+      if (ftags[fk].indexOf(s.name) >= 0) {{
+        tagHtml += '<span class="filter-tag">' + fk + '</span>';
+      }}
+    }}
+    h += '<td style="font-weight:600">' + s.name + tagHtml + '</td>';
     h += '<td>' + s.status + '</td>';
+    h += '<td>' + (s.d1 || '') + '</td>';
+    h += '<td>' + (s.d2 || '') + '</td>';
+    h += '<td>' + (s.d3 || '') + '</td>';
+    h += '<td>' + (s.d4 || '') + '</td>';
+    h += '<td>' + (s.d5 || '') + '</td>';
     h += '<td>' + s.ret_5d + '</td>';
     h += '<td>' + s.gt5_pct + '</td>';
     h += '<td style="font-size:11px;color:#6b7d95;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + s.stars + '</td>';
@@ -1244,6 +1291,8 @@ function buildSectorTable() {{
 // ========== 个股数据卡片 ==========
 var _stockTabBuilt = false;
 var _stockThemeOrder = {theme_order_json};
+var _stockThemeAvg = {theme_avg_json};
+var _stockFilterTags = {filter_tags_json};
 var _stockDefaultTheme = '{strongest_sector}';
 
 function buildStockTab() {{
@@ -1257,7 +1306,20 @@ function buildStockTab() {{
     var ph = '<span class="theme-pill" data-theme="全部" onclick="renderStockCards(&quot;全部&quot;)">全部</span>';
     _stockThemeOrder.forEach(function(t) {{
       var activeClass = (t === defaultTheme) ? ' active' : '';
-      ph += '<span class="theme-pill' + activeClass + '" data-theme="' + t.replace(/"/g,'&quot;') + '" onclick="renderStockCards(&quot;' + t.replace(/"/g,'&quot;') + '&quot;)">' + t + '</span>';
+      var avg = _stockThemeAvg[t];
+      var avgStr = '';
+      if (avg != null) {{
+        var avgClr = avg > 0 ? '#ef4444' : avg < 0 ? '#10b981' : '#94a3b8';
+        avgStr = ' <span style="color:' + avgClr + '">' + (avg >= 0 ? '+' : '') + avg.toFixed(2) + '%</span>';
+      }}
+      var dotStr = '';
+      var ft = _stockFilterTags;
+      var tags = [];
+      for (var fk in ft) {{ if (ft[fk].indexOf(t) >= 0) tags.push(fk); }}
+      if (tags.length) {{
+        dotStr = '<span class="filter-dot" title="' + tags.join(', ') + '"></span>';
+      }}
+      ph += '<span class="theme-pill' + activeClass + '" data-theme="' + t.replace(/"/g,'&quot;') + '" onclick="renderStockCards(&quot;' + t.replace(/"/g,'&quot;') + '&quot;)">' + t + avgStr + dotStr + '</span>';
     }});
     pillEl.innerHTML = ph;
   }}
@@ -1284,7 +1346,9 @@ function buildStockTab() {{
     var safeName = name.replace(/[^a-zA-Z0-9\\u4e00-\\u9fff]/g, '_');
     h += '<div class="stock-card" data-themes="' + info.s.replace(/'/g,"\\'") + '">';
     h += '<div class="stock-header">';
-    h += '<div><div class="stock-name">' + name + '<span class="stock-code">' + info.c + '</span></div>';
+    var emPrefix = (info.c && info.c.charAt(0) === '6') ? 'sh' : 'sz';
+    var emUrl = 'https://quote.eastmoney.com/concept/' + emPrefix + info.c + '.html';
+    h += '<div><div class="stock-name"><a href="' + emUrl + '" target="_blank" style="color:inherit;text-decoration:none" title="在东方财富查看">' + name + '</a><span class="stock-code">' + info.c + '</span></div>';
     h += '<div class="stock-theme">' + info.s + '</div></div>';
     h += '<div class="stock-price"><span class="val">' + priceStr + '</span>';
     h += '<span class="pct ' + pctCls + '">' + sign + pct.toFixed(2) + '%</span></div>';

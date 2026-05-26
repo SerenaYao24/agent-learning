@@ -32,6 +32,12 @@ import argparse, csv, os, sys, time, json, re
 from datetime import datetime
 from playwright.sync_api import sync_playwright
 
+if sys.version_info[0] < 3:
+    sys.stderr.write("错误：请使用 python3 运行此脚本，例如: python3 scrape_ma5_ranking.py\n")
+    sys.exit(1)
+
+print("⚠️  请确保已关闭 VPN，否则爬虫可能无法正常工作\n")
+
 DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 OUT_DIR = os.path.join(DATA_DIR, ".ma5_ranking")
 os.makedirs(OUT_DIR, exist_ok=True)

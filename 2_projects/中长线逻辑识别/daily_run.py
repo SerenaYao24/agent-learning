@@ -7,6 +7,13 @@
     python daily_run.py --analyze    # 仅分析+看板（最常用）
 """
 
+import sys
+if sys.version_info[0] < 3:
+    sys.stderr.write("错误：请使用 Python 3 运行此脚本\n")
+    sys.exit(1)
+
+print("⚠️  请确保已关闭 VPN，否则爬虫可能无法正常工作\n")
+
 import argparse
 import subprocess
 import sys
@@ -17,6 +24,7 @@ PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 STEPS = [
     ("自选股趋势分析", ["python", "stock_trend_analysis.py", "-i", "interest_stock.md"]),
+    ("题材筛选 (加强+抗跌)", ["python", "stock_filter.py", "--all", "--save-tags"]),
     ("MA5 角度排名", ["python", "scrape_ma5_ranking.py", "--top", "200"]),
     ("成交额排行", ["python", "scrape_amount_ranking.py", "--top", "50"]),
     ("指数+ETF 数据", ["python", "index_data.py"]),

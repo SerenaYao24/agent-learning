@@ -1,5 +1,17 @@
 # 中长线逻辑识别 — 状态记录
 
+## 2026-05-27
+
+- **已完成**：
+  - 个股数据 tab 题材标签按日均涨跌排序 + 显示平均涨幅（正红负绿）
+  - 个股卡片涨跌幅着色（正红负绿）、股票名点击跳转东方财富个股页（sh/sz）
+  - `stock_filter.py` 新增 `--all --save-tags` 批量模式，`daily_run.py` 自动调用两个筛选策略
+  - 板块数据表 + 个股题材标签展示筛选结果（加强题材/抗跌题材标签、绿点 hover）
+  - `daily_run.py` / `scrape_ma5_ranking.py` / `scrape_amount_ranking.py` 新增 Python3 版本检查
+  - 板块数据表新增 d1-d5 逐日涨跌列
+  - `interest_stock.md` 去重：92 只跨题材重复标的 → 0 重复
+- **当前状态**：`stock_filter.py --all --save-tags` 生成的 `filter_tags.json` 被看板消费显示
+
 ## 2026-05-25
 
 - **已完成**：

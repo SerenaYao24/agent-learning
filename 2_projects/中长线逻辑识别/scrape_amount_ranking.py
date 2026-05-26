@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-从东方财富条件选股页面爬取成交额排行 Top 50
+从东方财富条件选股页面爬取成交额排行 Top 100
 数据来源: https://xuangu.eastmoney.com/
 
 用法:
-    python scrape_amount_ranking.py                    # Top 50
+    python scrape_amount_ranking.py                    # Top 100
     python scrape_amount_ranking.py --top 100          # Top 100
     python scrape_amount_ranking.py --json --no-save   # JSON 输出，不保存
 """
@@ -14,11 +14,17 @@ import argparse, csv, os, sys, time, json
 from datetime import datetime
 from playwright.sync_api import sync_playwright
 
+if sys.version_info[0] < 3:
+    sys.stderr.write("错误：请使用 python3 运行此脚本，例如: python3 scrape_amount_ranking.py\n")
+    sys.exit(1)
+
+print("⚠️  请确保已关闭 VPN，否则爬虫可能无法正常工作\n")
+
 DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 OUT_DIR = os.path.join(DATA_DIR, ".ma5_ranking")
 os.makedirs(OUT_DIR, exist_ok=True)
 
-DEFAULT_QUERY = "成交额从大到小排名前 50，非 st"
+DEFAULT_QUERY = "成交额从大到小排名前 100，非 st"
 
 
 # ---- 页面交互 ----
@@ -248,7 +254,7 @@ def save_csv(results, date_str):
     return path
 
 
-def print_table(results, top_n=50):
+def print_table(results, top_n=100):
     n = min(top_n, len(results))
     print(f"\n{'='*78}")
     print(f" 成交额排行 Top {n}  (共{len(results)}条)")
@@ -266,7 +272,7 @@ def print_table(results, top_n=50):
 def main():
     parser = argparse.ArgumentParser(description="爬取东方财富成交额排行")
     parser.add_argument("--query", type=str, default=DEFAULT_QUERY)
-    parser.add_argument("--top", type=int, default=50)
+    parser.add_argument("--top", type=int, default=100)
     parser.add_argument("--page-size", type=int, default=100)
     parser.add_argument("--json", action="store_true")
     parser.add_argument("--no-save", action="store_true")
