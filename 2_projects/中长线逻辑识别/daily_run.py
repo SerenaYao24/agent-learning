@@ -23,19 +23,19 @@ import time
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 STEPS = [
-    ("自选股趋势分析", ["python", "stock_trend_analysis.py", "-i", "interest_stock.md"]),
-    ("题材筛选 (加强+抗跌)", ["python", "stock_filter.py", "--all", "--save-tags"]),
-    ("MA5 角度排名", ["python", "scrape_ma5_ranking.py", "--top", "200"]),
-    ("成交额排行", ["python", "scrape_amount_ranking.py", "--top", "50"]),
-    ("指数+ETF 数据", ["python", "index_data.py"]),
-    ("异常检测", ["python", "anomaly_detection.py", "--save-tags"]),
-    ("生成看板", ["python", "generate_dashboard.py"]),
+    ("自选股趋势分析", ["python3", "stock_trend_analysis.py", "-i", "interest_stock.md"]),
+    ("题材筛选 (加强+抗跌)", ["python3", "stock_filter.py", "--all", "--save-tags"]),
+    ("MA5 角度排名", ["python3", "scrape_ma5_ranking.py", "--top", "200"]),
+    ("成交额排行", ["python3", "scrape_amount_ranking.py", "--top", "50"]),
+    ("指数+ETF 数据", ["python3", "index_data.py"]),
+    ("异常检测", ["python3", "anomaly_detection.py", "--save-tags"]),
+    ("生成看板", ["python3", "generate_dashboard.py"]),
 ]
 
 
 def run(cmd, cwd):
     """Run a command; returns (success: bool, output: str)."""
-    r = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
+    r = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, encoding="utf-8", errors="replace")
     return r.returncode == 0, r.stderr.strip() or r.stdout.strip()
 
 
@@ -83,6 +83,37 @@ def main():
     print(f"{'=' * 60}")
     print(f"  完成: {ok} 成功, {fail} 失败, 耗时 {elapsed:.0f}s")
     print(f"{'=' * 60}")
+
+    # ---- 重启看板服务 ----
+    print()
+    print("[*] 重启看板服务 (dashboard_server.py)...")
+    try:
+        result = subprocess.run(["lsof", "-ti:8977"], capture_output=True, text=True)
+        pids = result.stdout.strip().split()
+        if pids:
+            for pid in pids:
+                print(f"  停掉旧进程 PID={pid}")
+                subprocess.run(["kill", pid], capture_output=True)
+            time.sleep(1)
+
+        log_path = os.path.join(PROJECT_DIR, "dashboard_server.log")
+        with open(log_path, "w") as log_file:
+            subprocess.Popen(
+                ["python3", "dashboard_server.py"],
+                cwd=PROJECT_DIR,
+                stdout=log_file,
+                stderr=subprocess.STDOUT,
+                start_new_session=True,
+            )
+        time.sleep(1.5)
+
+        check = subprocess.run(["lsof", "-ti:8977"], capture_output=True, text=True)
+        if check.stdout.strip():
+            print("  ✓ 看板服务已启动 (端口 8977)")
+        else:
+            print(f"  ⚠ 启动验证失败，查看日志: {log_path}")
+    except Exception as e:
+        print(f"  ⚠ 重启看板服务失败: {e}")
 
 
 if __name__ == "__main__":
