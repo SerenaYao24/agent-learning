@@ -115,6 +115,11 @@ def main():
     except Exception as e:
         print(f"  ⚠ 重启看板服务失败: {e}")
 
+    # ---- 打开看板 ----
+    print()
+    subprocess.run(["open", "http://localhost:8977/dashboard.html"])
+    print("  ✓ 已在浏览器打开看板")
+
 
 if __name__ == "__main__":
     main()
