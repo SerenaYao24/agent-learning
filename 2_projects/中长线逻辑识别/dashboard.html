@@ -99,6 +99,13 @@ body{background:#0a0e17;color:#e0e6ed;font-family:'Fira Sans',-apple-system,sans
 .theme-pill.active{background:#1d4ed8;border-color:#3b82f6;color:#fff}
 .filter-dot{position:absolute;top:-3px;right:-3px;width:8px;height:8px;border-radius:50%;background:#10b981;border:1px solid #0a0e17;cursor:help}
 .filter-tag{display:inline-block;margin-left:4px;padding:1px 6px;border-radius:8px;font-size:10px;font-weight:500;background:#0a2a1a;color:#10b981;border:1px solid #1a4a2a;vertical-align:middle}
+.pill{padding:5px 12px;border-radius:14px;font-size:12px;background:transparent;color:#94a3b8;border:1px solid #334155;cursor:pointer;font-family:inherit;white-space:nowrap;margin:2px}
+.pill:hover{border-color:#3b82f6;color:#e0e6ed}
+.pill.active{background:#1d4ed8;border-color:#3b82f6;color:#fff}
+.pill b{color:#f59e0b;margin-left:3px}
+.tag{display:inline-block;padding:1px 6px;border-radius:6px;font-size:11px;font-weight:600;vertical-align:middle}
+.tag.green{background:#0a2a1a;color:#10b981;border:1px solid #1a4a2a}
+.tag.red{background:#2a0a0a;color:#ef4444;border:1px solid #4a1a1a}
 
 /* Stock card grid */
 .stock-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px;padding:0 24px 16px;max-width:1800px}
@@ -156,6 +163,7 @@ body{background:#0a0e17;color:#e0e6ed;font-family:'Fira Sans',-apple-system,sans
   <button class="tab-btn active" onclick="switchTab('index')">指数宏观</button>
   <button class="tab-btn" onclick="switchTab('etf')">ETF宏观</button>
   <button class="tab-btn" onclick="switchTab('sector')">板块数据</button>
+  <button class="tab-btn" onclick="switchTab('ma5')">5日线角度</button>
   <button class="tab-btn" onclick="switchTab('stock')">个股数据</button>
   <button class="tab-btn" onclick="switchTab('block')">大宗交易</button>
   <button class="tab-btn" onclick="switchTab('monitor')">重点监控</button>
@@ -183,7 +191,20 @@ body{background:#0a0e17;color:#e0e6ed;font-family:'Fira Sans',-apple-system,sans
   </div>
 </div>
 
-<!-- ====== Tab 4: 个股数据 ====== -->
+<!-- ====== Tab 4: 5日线角度 ====== -->
+<div class="tab-pane" id="tab-ma5">
+  <div class="theme-pills" id="ma5-theme-pills"></div>
+  <div class="rank-wrap" style="max-height:none">
+    <table class="rank-table" id="ma5-rank-table">
+      <thead><tr>
+        <th>标签</th><th>标的名称</th><th>今日涨幅</th><th>今日排名</th><th>所属题材</th><th>备注</th>
+      </tr></thead>
+      <tbody id="ma5-rank-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ====== Tab 5: 个股数据 ====== -->
 <div class="tab-pane" id="tab-stock">
   <div class="theme-pills" id="theme-pills"></div>
   <div class="stock-grid" id="grid-stock"></div>
@@ -332,6 +353,7 @@ function switchTab(name) {
     _tabRendered[name] = true;
     if (name==='etf') buildEtfGrid();
     if (name==='sector') buildSectorTable();
+    if (name==='ma5') buildMa5TrendTab();
     if (name==='stock') buildStockTab();
     if (name==='block') buildBlockTable();
     if (name==='monitor') buildMonitorTab();
@@ -665,6 +687,8 @@ const data = (window._CHART_BUILDBLOCKTABLE||[]);
     el.innerHTML = '<div class="empty-state"><div class="icon">📋</div><p>自选股近5日无大宗交易</p></div>';
     return;
   }
+  // 按平均折溢率从大到小排序
+  data.sort(function(a,b){ return (b['wavg_rate']||0) - (a['wavg_rate']||0); });
   let h = '<table class="rank-table block-table"><thead><tr><th>名称</th><th>代码</th><th>日期</th><th>成交价</th><th>折溢率<span class="tooltip-hint">?<span class="tooltip-text">近5日加权折溢率 = Σ(折溢率×成交额) / Σ成交额</span></span></th><th>总额(万)</th><th>备注</th></tr></thead><tbody>';
   data.forEach(function(theme) {
     var wr = theme['wavg_rate']; var ws = wr>=0?'+':''; var wc = wr>0?'up':wr<0?'down':'';
@@ -730,6 +754,60 @@ var _stockThemeOrder = ["金刚石", "MLCC 电容", "铝电容", "电子布", "�
 var _stockThemeAvg = {"金刚石": 6.93, "MLCC 电容": 6.63, "铝电容": 5.19, "电子布": 5.15, "铜箔/覆铜板（PCB）": 4.51, "先进封装": 4.35, "AI 消费电子": 3.96, "PCB": 3.45, "钽电容": 3.27, "电阻电容": 3.14, "光伏": 2.72, "小金属": 2.62, "薄膜电容": 2.65, "国产芯片": 2.52, "碳化硅": 2.42, "物理AI（机器视觉）": 2.28, "量子计算": 2.36, "半导体设备": 2.26, "光通信": 2.14, "电力": 1.91, "玻璃基板（CPU）": 1.89, "CPO": 1.92, "消费": 1.81, "稀土": 1.55, "智能电网/AIDC-电力设备": 1.4, "地产": 1.33, "半导体材料": 1.33, "AIDC-电源/发电机": 1.29, "未匹配题材": 1.21, "磷化铟": 1.16, "自动驾驶": 1.05, "存储扩产": 0.63, "AIDC-变压器": 0.52, "生物医药": 0.52, "商业航天": 0.36, "机器人": 0.13, "算力租赁": 0.01, "液冷": -0.02, "电池/储能": -0.16, "AI 应用": -0.17, "光纤": -0.2, "存储": -0.2, "燃气/氢能": -0.69, "算力调度/算力工厂": -0.7, "CPU": -0.89, "核电": -0.99, "半导体洁净室": -1.4, "油运": -1.8, "两存股权": -3.54};
 var _stockFilterTags = {"抗跌题材": ["未匹配题材", "MLCC 电容", "薄膜电容", "铝电容", "光通信", "光伏", "物理AI（机器视觉）", "电阻电容", "碳化硅", "AIDC-电源/发电机", "智能电网/AIDC-电力设备", "电力", "AIDC-变压器", "AI 应用", "玻璃基板（CPU）"], "加强题材": ["未匹配题材", "MLCC 电容", "薄膜电容", "光通信", "光伏", "物理AI（机器视觉）"]};
 var _stockDefaultTheme = '金刚石';
+
+// ========== Tab 4: 5日线角度 ==========
+var _ma5TrendBuilt = false;
+var _ma5Filter = null;
+function buildMa5TrendTab() {
+  if (_ma5TrendBuilt) return;
+  _ma5TrendBuilt = true;
+  fetch('/api/data/ma5-trend').then(function(r){return r.json();}).then(function(d){
+    _ma5Data = d;
+    renderMa5ThemePills(d.topic_tags);
+    renderMa5RankTable(d.stocks, _ma5Filter);
+  }).catch(function(){
+    document.getElementById('ma5-rank-body').innerHTML = '<tr><td colspan="6" class="tc" style="padding:24px;color:#6b7d95">暂无MA5趋势数据</td></tr>';
+  });
+}
+
+function renderMa5ThemePills(tags) {
+  var el = document.getElementById('ma5-theme-pills');
+  if (!el) return;
+  var h = '<span class="pill' + (_ma5Filter===null?' active':'') + '" onclick="_ma5Filter=null;renderMa5RankTable(_ma5Data.stocks,null);renderMa5ThemePills(_ma5Data.topic_tags)">全部</span>';
+  tags.forEach(function(t){
+    var avg = t.avg_rank === '-' ? '-' : t.avg_rank;
+    h += '<span class="pill' + (_ma5Filter===t.name?' active':'') + '" onclick="_ma5Filter=\''+t.name+'\';renderMa5RankTable(_ma5Data.stocks,\''+t.name+'\');renderMa5ThemePills(_ma5Data.topic_tags)">' + t.name + ' <b>' + avg + '</b></span>';
+  });
+  el.innerHTML = h;
+}
+
+function renderMa5RankTable(stocks, filter) {
+  var list = filter ? stocks.filter(function(s){return s.sectors.indexOf(filter)>=0;}) : stocks;
+  list.sort(function(a,b){return a.rank-b.rank;});
+  var body = document.getElementById('ma5-rank-body');
+  if (!body) return;
+  var h = '';
+  list.forEach(function(s){
+    var diffTags = '';
+    var diffs = s.rank_diffs || [];
+    diffs.forEach(function(d){
+      if (d.diff === null || d.diff === undefined) return;
+      if (d.diff > 0) diffTags += '<span class="tag green">+'+d.diff+'</span>';
+      else if (d.diff < 0) diffTags += '<span class="tag red">'+d.diff+'</span>';
+      else diffTags += '<span class="tag" style="color:#6b7d95">0</span>';
+    });
+    var sectorStr = (s.sectors||[]).slice(0,2).join(', ');
+    h += '<tr>';
+    h += '<td>' + (diffTags||'—') + '</td>';
+    h += '<td style="font-weight:600">' + s.name + '</td>';
+    h += '<td>' + (s.chg||'') + '</td>';
+    h += '<td>' + s.rank + '</td>';
+    h += '<td style="color:#6b7d95">' + sectorStr + '</td>';
+    h += '<td style="font-size:11px;color:#6b7d95;max-width:160px;overflow:hidden;text-overflow:ellipsis">' + (s.note||'') + '</td>';
+    h += '</tr>';
+  });
+  body.innerHTML = h;
+}
 
 function buildStockTab() {
   if (_stockTabBuilt) return;
@@ -1003,6 +1081,8 @@ function renderMonitorTable(data) {
   if (!el) return;
   if (!data.length) { el.innerHTML = '<div class="empty-state"><div class="icon">📋</div><p>暂无监控记录</p></div>'; return; }
   var today = new Date().toISOString().slice(0,10);
+  // 按开始时间从近到远排序
+  data.sort(function(a,b){ return (b['开始']||'').localeCompare(a['开始']||''); });
   var h = '<table class="rank-table"><thead><tr><th>名称</th><th>类型</th><th>触发规则</th><th>开始</th><th>结束</th><th>操作</th></tr></thead><tbody>';
   data.forEach(function(r,i) {
     var active = r['结束'] >= today;

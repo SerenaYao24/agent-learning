@@ -28,6 +28,7 @@ STEPS = [
     ("MA5 角度排名", ["python3", "scrape_ma5_ranking.py", "--top", "200"]),
     ("成交额排行", ["python3", "scrape_amount_ranking.py", "--top", "50"]),
     ("指数+ETF 数据", ["python3", "index_data.py"]),
+    ("MA5角度趋势", ["python3", "_gen_ma5_trend.py"]),
     ("异常检测", ["python3", "anomaly_detection.py", "--save-tags"]),
     ("生成看板", ["python3", "generate_dashboard.py"]),
     ("提取数据（瘦身 HTML）", ["python3", "_unbundle_dashboard.py"]),

@@ -47,6 +47,7 @@ class DashboardHandler(SimpleHTTPRequestHandler):
             "/api/data/ranking": ("ranking.json", "application/json"),
             "/api/data/block": ("block.json", "application/json"),
             "/api/data/sector": ("sector.json", "application/json"),
+            "/api/data/ma5-trend": ("ma5_trend.json", "application/json"),
         }
         if path in data_files:
             fname, ctype = data_files[path]
