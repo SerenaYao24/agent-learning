@@ -10,6 +10,7 @@ node_modules/
 **/__pycache__/
 **/*.pyc
 **/data/
+*.log
 
 # 自动生成的文件
 **/trend_view.html

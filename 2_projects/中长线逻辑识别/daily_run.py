@@ -30,6 +30,7 @@ STEPS = [
     ("指数+ETF 数据", ["python3", "index_data.py"]),
     ("异常检测", ["python3", "anomaly_detection.py", "--save-tags"]),
     ("生成看板", ["python3", "generate_dashboard.py"]),
+    ("提取数据（瘦身 HTML）", ["python3", "_unbundle_dashboard.py"]),
 ]
 
 
