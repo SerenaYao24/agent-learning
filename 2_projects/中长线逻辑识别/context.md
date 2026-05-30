@@ -36,6 +36,7 @@
   - `scrape_ma5_ranking.py` 需 playwright + chromium
   - CSV 文件以页面数据日期命名（如 `ranking_2026-05-22.csv`），非脚本执行日期，避免周末重复运行产生冗余文件
   - `generate_trend_page.py` 需缓存中有 OHLCV 数据
+  - **所有前端变更必须在 `generate_dashboard.py` 模板中修改，禁止直接修改 `dashboard.html`**（HTML 由脚本每次重新生成，直接改 HTML 会在下次运行 `daily_run.py` 时被覆盖）
 - **软约束/偏好**：MA5 排行优先爬虫版，公式版备用；风险/机会/监控数据经 API 持久化到项目根目录 JSON 文件
 - **冲突处理**：缓存过期 → `--refresh` 全量刷新
 
@@ -44,8 +45,8 @@
 ### 0. 每日一键流程（最常用）
 
 ```bash
-python daily_run.py --analyze    # 串行执行以下 1→2→7→5→8
-python daily_run.py              # 全流程（含涨停板复盘提醒）
+python3 daily_run.py --analyze    # 串行执行以下 1→2→7→5→8
+python3 daily_run.py              # 全流程（含涨停板复盘提醒）
 ```
 
 ### 1. MA5 角度排行（主链路）
@@ -132,13 +133,9 @@ python dashboard_server.py          # 启动统一服务（端口 8977）
 
 ### 7. 题材涨幅排行（按近10日涨幅筛选前15）
 
-```bash
-python3 gen_top_list.py                          # 基于 interest_stock.md 生成 top_list.md
-python3 gen_top_list.py --test                   # 测试模式（基于 test_interest_stock.md）
-```
+该功能已内嵌到 `stock_trend_analysis.py`，数据获取完成后、报告生成前自动更新 `top_list.md`，无需单独执行。
 
-步骤：读取 interest_stock.md → 按题材分组 → 从缓存或 akshare 获取各标的近10日涨幅 → 每题材保留涨幅前15名 → 输出 top_list.md（格式与 interest_stock.md 一致）。
-- 数据来源优先缓存（`.stock_cache/stock_data.json`），缺失时自动调用 akshare 补全
+步骤：读取 interest_stock.md → 按题材分组 → 从缓存计算各标的近10日涨幅 → 每题材保留涨幅前15名 → 输出 top_list.md（格式与 interest_stock.md 一致）。
 - 无数据标的放末尾并标注 `# ⚠️ 无近10日数据`
 - 代码映射支持硬编码修正（`HARDCODED_MAP`），覆盖名称映射错误
 

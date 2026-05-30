@@ -119,6 +119,12 @@ body{background:#0a0e17;color:#e0e6ed;font-family:'Fira Sans',-apple-system,sans
 /* Sector table rows */
 .sector-row{cursor:pointer;transition:background .15s}
 .sector-row:hover td{background:#1a2744 !important}
+/* MA5 排名变化标签 */
+.rank-tag{display:inline-block;padding:1px 6px;border-radius:8px;font-size:10px;font-weight:600;margin:1px 2px;min-width:28px;text-align:center}
+.rank-tag.up{background:#0a2a1a;color:#10b981;border:1px solid #1a4a2a}
+.rank-tag.down{background:#2d1506;color:#f97316;border:1px solid #7c2d12}
+.rank-tag.none{background:transparent;color:#4b5563;border:1px dashed #334155}
+
 </style>
 </head>
 <body>
@@ -165,6 +171,7 @@ body{background:#0a0e17;color:#e0e6ed;font-family:'Fira Sans',-apple-system,sans
   <button class="tab-btn active" onclick="switchTab('index')">指数宏观</button>
   <button class="tab-btn" onclick="switchTab('etf')">ETF宏观</button>
   <button class="tab-btn" onclick="switchTab('sector')">板块数据</button>
+  <button class="tab-btn" onclick="switchTab('ma5')">5日线角度</button>
   <button class="tab-btn" onclick="switchTab('stock')">个股数据</button>
   <button class="tab-btn" onclick="switchTab('block')">大宗交易</button>
   <button class="tab-btn" onclick="switchTab('monitor')">重点监控</button>
@@ -192,18 +199,31 @@ body{background:#0a0e17;color:#e0e6ed;font-family:'Fira Sans',-apple-system,sans
   </div>
 </div>
 
-<!-- ====== Tab 4: 个股数据 ====== -->
+<!-- ====== Tab 4: 5日线角度 ====== -->
+<div class="tab-pane" id="tab-ma5">
+  <div class="theme-pills" id="ma5-theme-pills"></div>
+  <div class="rank-wrap" style="max-height:none">
+    <table class="rank-table" id="ma5-table">
+      <thead><tr>
+        <th>排名变化</th><th>名称</th><th>今日涨幅</th><th>今日排名</th><th>所属题材</th><th>备注</th>
+      </tr></thead>
+      <tbody id="ma5-table-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ====== Tab 5: 个股数据 ====== -->
 <div class="tab-pane" id="tab-stock">
   <div class="theme-pills" id="theme-pills"></div>
   <div class="stock-grid" id="grid-stock"></div>
 </div>
 
-<!-- ====== Tab 5: 大宗交易 ====== -->
+<!-- ====== Tab 7: 大宗交易 ====== -->
 <div class="tab-pane" id="tab-block">
   <div id="block-table"></div>
 </div>
 
-<!-- ====== Tab 6: 重点监控 ====== -->
+<!-- ====== Tab 7: 重点监控 ====== -->
 <div class="tab-pane" id="tab-monitor">
   <div id="monitor-add" style="margin-bottom:12px"></div>
   <div id="monitor-table"></div>
@@ -341,6 +361,7 @@ function switchTab(name) {
     _tabRendered[name] = true;
     if (name==='etf') buildEtfGrid();
     if (name==='sector') buildSectorTable();
+    if (name==='ma5') buildMa5Trend();
     if (name==='stock') buildStockTab();
     if (name==='block') buildBlockTable();
     if (name==='monitor') buildMonitorTab();
@@ -700,6 +721,71 @@ function toggleTheme(row) {
   }
 }
 
+// ========== 5日线角度排名趋势 ==========
+function buildMa5Trend() {
+  var w = window._CHART_BUILDMA5TREND || {stocks:[], topic_tags:[]};
+  var stocks = w.stocks || [], tags = w.topic_tags || [];
+  var activeTheme = '_all';
+
+  // 题材标签 pills
+  var pillsEl = document.getElementById('ma5-theme-pills');
+  if (pillsEl) {
+    var pillHtml = '<button class="theme-pill active" data-theme="_all" onclick="filterMa5Theme(this,\'_all\')">全部 ' + stocks.length + '</button>';
+    tags.forEach(function(t) {
+      pillHtml += '<button class="theme-pill" data-theme="' + t.name + '" onclick="filterMa5Theme(this,\'' + t.name + '\')">' + t.name + ' ' + (typeof t.avg_rank==='number' ? t.avg_rank : '-') + '</button>';
+    });
+    pillsEl.innerHTML = pillHtml;
+  }
+
+  // 表格渲染
+  function render(filterTheme) {
+    var el = document.getElementById('ma5-table-body');
+    if (!el) return;
+    var filtered = filterTheme === '_all' ? stocks : stocks.filter(function(s) { return s.sectors.indexOf(filterTheme) >= 0; });
+    if (!filtered.length) { el.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:#6b7d95">暂无数据</td></tr>'; return; }
+
+    // 计算日期标签（最多4个相邻对比）
+
+    var h = '';
+    filtered.forEach(function(s) {
+      // 排名变化标签列
+      var tagHtml = '';
+      if (s.rank_diffs && s.rank_diffs.length) {
+        s.rank_diffs.forEach(function(rd) {
+          var cls = 'none', txt = '—';
+          if (rd.diff !== null && rd.diff !== undefined) {
+            if (rd.diff > 0) { cls = 'up'; txt = '+' + rd.diff; }
+            else if (rd.diff < 0) { cls = 'down'; txt = String(rd.diff); }
+            else { cls = 'none'; txt = '0'; }
+          }
+          tagHtml += '<span class="rank-tag ' + cls + '">' + txt + '</span>';
+        });
+      }
+      // 题材（取第一个）
+      var sector = (s.sectors && s.sectors.length) ? s.sectors[0] : '-';
+      var chg = s.chg || '—';
+      var chgCls = String(chg).startsWith('-') ? 'down' : 'up';
+      h += '<tr>' +
+        '<td style="white-space:nowrap">' + tagHtml + '</td>' +
+        '<td>' + s.name + '</td>' +
+        '<td class="' + chgCls + '">' + chg + '</td>' +
+        '<td>' + (s.rank||'—') + '</td>' +
+        '<td>' + sector + '</td>' +
+        '<td>' + (s.note||'') + '</td>' +
+        '</tr>';
+    });
+    el.innerHTML = h;
+  }
+
+  render('_all');
+  window.filterMa5Theme = function(btn, theme) {
+    activeTheme = theme;
+    document.querySelectorAll('#ma5-theme-pills .theme-pill').forEach(function(p) { p.classList.remove('active'); });
+    btn.classList.add('active');
+    render(activeTheme);
+  };
+}
+
 // ========== 板块数据表格 ==========
 function buildSectorTable() {
   var data = (window._CHART_BUILDSECTORTABLE||[]);
@@ -967,17 +1053,17 @@ function buildMonitorTab() {
       '<select id="mon-type" style="padding:6px 10px;border-radius:6px;font-size:12px;background:#1e2a3a;color:#e0e6ed;border:1px solid #334155;font-family:inherit"><option>重点监控</option><option>触发严重异动（暂未监管）</option></select>'+
       '<select id="mon-rule" style="padding:6px 10px;border-radius:6px;font-size:12px;background:#1e2a3a;color:#e0e6ed;border:1px solid #334155;font-family:inherit"><option>30天200%</option><option>10天100%</option></select>'+
       '<input type="date" id="mon-start" value="'+today+'" onchange="onMonStartChange()">'+
-      '<input type="date" id="mon-end" value="'+addDays(today,14)+'">'+
+      '<input type="date" id="mon-end" value="'+addTradingDays(today,10)+'">'+
       '<button onclick="addMonitor()">添加</button>'+
       '</div>';
   }
 }
 
-function addDays(d, n) { var dt=new Date(d); dt.setDate(dt.getDate()+n); return dt.toISOString().slice(0,10); }
+function addTradingDays(d, n) { var dt=new Date(d); while(n>0){ dt.setDate(dt.getDate()+1); if(dt.getDay()!==0&&dt.getDay()!==6)n--; } return dt.toISOString().slice(0,10); }
 
 function onMonStartChange() {
   var s = document.getElementById('mon-start').value;
-  if (s) document.getElementById('mon-end').value = addDays(s, 14);
+  if (s) document.getElementById('mon-end').value = addTradingDays(s, 10);
 }
 
 function addMonitor() {
@@ -1010,6 +1096,8 @@ function toggleMonType(idx) {
 function renderMonitorTable(data) {
   var el = document.getElementById('monitor-table');
   if (!el) return;
+  // 按监管开始时间从近到远排列
+  data = data.slice().sort(function(a,b){ return (b['开始']||'').localeCompare(a['开始']||''); });
   if (!data.length) { el.innerHTML = '<div class="empty-state"><div class="icon">📋</div><p>暂无监控记录</p></div>'; return; }
   var today = new Date().toISOString().slice(0,10);
   var h = '<table class="rank-table"><thead><tr><th>名称</th><th>类型</th><th>触发规则</th><th>开始</th><th>结束</th><th>操作</th></tr></thead><tbody>';
@@ -1040,10 +1128,10 @@ function onIndexStateChange(state) {
 var _DATA_LOADED = false;
 function loadAllData(cb) {
   if (_DATA_LOADED) { cb(); return; }
-  var pending = 6, done = function(){ if (--pending <= 0) { _DATA_LOADED = true; cb(); } };
+  var pending = 7, done = function(){ if (--pending <= 0) { _DATA_LOADED = true; cb(); } };
   [{s:'/api/data/stock-map'}, {s:'/api/data/index-chart'}, {s:'/api/data/etf-chart'}]
     .forEach(function(x){ var el=document.createElement('script'); el.src=x.s; el.onload=done; el.onerror=done; document.head.appendChild(el); });
-  [{u:'/api/data/ranking', n:'_CHART_BUILDRANKTABLE'}, {u:'/api/data/block', n:'_CHART_BUILDBLOCKTABLE'}, {u:'/api/data/sector', n:'_CHART_BUILDSECTORTABLE'}]
+  [{u:'/api/data/ranking', n:'_CHART_BUILDRANKTABLE'}, {u:'/api/data/block', n:'_CHART_BUILDBLOCKTABLE'}, {u:'/api/data/sector', n:'_CHART_BUILDSECTORTABLE'}, {u:'/api/data/ma5-trend', n:'_CHART_BUILDMA5TREND'}]
     .forEach(function(f){ fetch(f.u).then(function(r){return r.json();}).then(function(d){ window[f.n]=d; done(); }).catch(done); });
 }
 

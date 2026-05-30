@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """生成近5日MA5角度排名趋势数据 -> .index_data/ma5_trend.json"""
-import os, json, glob
+import os, json, glob, unicodedata
 from collections import defaultdict
 
 BASE = os.path.dirname(os.path.abspath(__file__))
@@ -23,15 +23,24 @@ def parse_ranking(path):
     for line in lines[1:]:
         cols = line.split(",")
         try:
-            code_idx = ci.get("代码", 1)
-            name_idx = ci.get("名称", 2)
-            angle_idx = ci.get("角度", 3)
-            price_idx = ci.get("最新价", 4)
-            chg_idx = ci.get("涨跌幅", 5)
+            rank_val = int(cols[0].strip())
+            if rank_val > 200:  # 只取前200名
+                continue
+            code_idx = ci.get("代码", ci.get("code", 1))
+            name_idx = ci.get("名称", ci.get("name", 2))
+            angle_idx = ci.get("角度", ci.get("angle", 3))
+            price_idx = ci.get("最新价", ci.get("price", 4))
+            chg_idx = ci.get("涨跌幅", ci.get("chg", 5))
+            raw_code = cols[code_idx].strip()
+            # 统一去前缀（sh/sz/bj），不同日期的 CSV 代码格式不一致
+            norm_code = raw_code.replace("sh", "").replace("sz", "").replace("bj", "")
+            raw_name = cols[name_idx].strip()
+            # 全角→半角标准化（如"粤电力Ａ"→"粤电力A"）
+            norm_name = unicodedata.normalize('NFKC', raw_name)
             rows.append({
-                "code": cols[code_idx].strip(),
-                "name": cols[name_idx].strip(),
-                "rank": int(cols[0].strip()),
+                "code": norm_code,
+                "name": norm_name,
+                "rank": rank_val,
                 "angle": float(cols[angle_idx].strip()),
                 "price": cols[price_idx].strip(),
                 "chg": cols[chg_idx].strip(),
@@ -103,8 +112,6 @@ for s in latest["stocks"]:
     name = s["name"]
     stock_sectors = sectors.get(name, [])
     note = notes_map.get(name, "")
-    if sectors and name not in sectors:
-        continue
     
     rank = s["rank"]
     # 与之前每一天对比的排名差 (date, diff)
@@ -125,9 +132,11 @@ for s in latest["stocks"]:
                 rank = prev_rank
                 break
         if not found:
-            rank_diffs.append({"date": prev_date, "rank": None, "diff": None})
+            # 不在前200名内，用200作为基准排名计算增幅
+            diff = 200 - rank
+            rank_diffs.append({"date": prev_date, "rank": None, "diff": diff})
             rank_history.append(None)
-            rank = s["rank"]  # 保持当日排名用于后续对比
+            rank = 200  # 假设前日刚好在200名边缘
     
     # 反转使最新在前
     rank_diffs.reverse()

@@ -3,8 +3,8 @@
 """每日核心流程编排 —— 一个命令跑完分析+看板全链路。
 
 用法:
-    python daily_run.py              # 全流程（涨停提醒 + 分析看板）
-    python daily_run.py --analyze    # 仅分析+看板（最常用）
+    python3 daily_run.py              # 全流程（涨停提醒 + 分析看板）
+    python3 daily_run.py --analyze    # 仅分析+看板（最常用）
 """
 
 import sys
