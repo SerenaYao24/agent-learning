@@ -14,6 +14,7 @@
   - `context.md` + `daily_run.py` 中 `python` → `python3` 统一，移除失效的 `gen_top_list.py` 独立命令
   - 上下文文档新增约束：禁止直接修改 `dashboard.html`
 - **当前状态**：看板生成一条命令产出数据文件 + 瘦身 HTML；`_unbundle_dashboard.py` 退役；5日线角度 Tab 可用
+- **关键修复**：`build_sector_time_series` 两个 bug 修复 — `dir()` 导致代码映射失效（46→13题材）、`parsed_reports[:4]` 取错历史报告（d1~d4 取最旧4天→最近4天）
 - **文档更新**：context.md、代码使用方法.md、process_insight.md 同步更新
 
 ## 2026-05-30（原条目）

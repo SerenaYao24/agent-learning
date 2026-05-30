@@ -204,3 +204,10 @@
 ### 决策 15：重点监控 + 大宗交易排序规则
 - **决策**：重点监控按开始时间从近到远，结束时间默认 +10 交易日（剔除周末）；大宗交易题材按平均折溢率从大到小排列。
 - **理由**：用户审查时优先关注最近监管和最大折溢率，减少滚动查找。
+
+### 决策 16：修复多日报告 d1~d4 数据缺失
+- **决策**：`build_sector_time_series` 中 `saved_code_map = load_stock_code_map() if 'load_stock_code_map' in dir() else {}` 改为直接调用 `load_stock_code_map()`；`hist_reports = parsed_reports[:4]` 改为 `parsed_reports[:-1][-4:]`。
+- **理由**：
+  - `dir()` 在函数内不包含模块级函数名，导致 `saved_code_map` 永远为空 `{}`，仅 `STOCK_CODE_MAP`（13条硬编码）可用，46 个题材中 33 个因股票代码查找失败被丢弃
+  - `parsed_reports[:4]` 取最旧的 4 份报告（如 05-18~05-21），而非最近 4 份历史（05-25~05-28），导致 d1~d4 全为"-"
+- **约束**：`load_stock_code_map()` 从 `stock_code_map.json`（679 条）读取，依赖日常分析保持代码映射更新

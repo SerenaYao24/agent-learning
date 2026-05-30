@@ -2237,7 +2237,7 @@ def build_sector_time_series(cache: dict, input_md_path: str = None) -> list:
     sector_map = parse_sector_mapping(input_md_path) if input_md_path else {}
 
     # 加载名称→代码映射（用于将中文名称匹配到缓存中的代码）
-    saved_code_map = load_stock_code_map() if 'load_stock_code_map' in dir() else {}
+    saved_code_map = load_stock_code_map()
 
     # 按题材分组股票代码和名称
     sector_stocks = {}  # {sector_name: [(stock_name, stock_code), ...]}
@@ -2504,7 +2504,7 @@ def generate_multi_day_analysis(days_to_analyze: int = 10, input_md_path: str = 
     sector_time_series = build_sector_time_series(cache_data, input_md_path) if cache_data else []
 
     # 将历史题材表数据合并到 sector_time_series
-    hist_reports = parsed_reports[:4]  # 最多取4份历史
+    hist_reports = parsed_reports[:-1][-4:]  # 最近4份历史报告（排除今日）
     hist_sectors = {}  # {sector_name: {date_index: avg_return}}
     for i, report_data in enumerate(hist_reports):
         date_key = f"d{i+1}" if i < 4 else f"d{i+1}"
