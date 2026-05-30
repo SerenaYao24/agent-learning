@@ -387,13 +387,15 @@ def extract_stock_code_from_parentheses(text: str) -> str:
     match = re.search(r'[（(](\d{6})[）)]', text)
     if match:
         code = match.group(1)
-        # 判断市场前缀：6开头=沪市，0/3开头=深市
+        # 判断市场前缀：6开头=沪市，0/3开头=深市，4/8/92开头=北交所
         if code.startswith('6'):
             return f"sh{code}"
         elif code.startswith(('0', '3')):
             return f"sz{code}"
+        elif code.startswith(('4', '8')) or code.startswith('92'):
+            return f"bj{code}"
         else:
-            return code
+            return None
     return None
 
 
@@ -1672,6 +1674,18 @@ def main():
         print(f"正在获取 {stock_name} ({stock_code}) 数据...")
 
         # 获取数据（传入缓存，支持增量获取）
+        # 检查代码格式：北交所（92开头、4开头、8开头）可能不被 akshare 支持，提前跳过
+        _raw_code = stock_code.replace('bj', '').replace('sh', '').replace('sz', '')
+        if _raw_code.startswith(('4', '8')) or _raw_code.startswith('92'):
+            print(f"  ⚠ {stock_name}({stock_code}) 北交所股票，API 可能不支持，跳过")
+            return {
+                "stock_name": stock_name,
+                "stock_code": stock_code,
+                "daily_changes": [],
+                "alerts": ["北交所股票，API 不支持"],
+                "status": "API不支持"
+            }, [], None
+
         if args.refresh or stock_code not in cache:
             # 全量获取
             data = get_stock_data(stock_code, {})
@@ -1767,11 +1781,12 @@ def main():
                 for clean_name, original_line in stock_names
             }
 
-            # 收集结果
+            # 收集结果（带超时，防止单只股票 API 卡死拖慢整个流程）
+            _PENDING_TIMEOUT = 30  # 单只股票最长等待30秒
             for future in as_completed(future_to_stock):
                 stock_name = future_to_stock[future]
                 try:
-                    result, changes, cache_update = future.result()
+                    result, changes, cache_update = future.result(timeout=_PENDING_TIMEOUT)
                     results.append(result)
 
                     # 收集涨跌幅数据

@@ -1,15 +1,18 @@
 # 中长线逻辑识别 — 状态记录
 
-## 2026-06-02（实为05-30的批量变更）
+## 2026-05-30（批量变更）
 
 - **已完成**：
   - `generate_dashboard.py`：个股数据/题材筛选/大宗交易过滤改用 `top_list.md` 作为股票池
   - `stock_trend_analysis.py`：日常报告和多日报告的题材统计使用 `top_list.md`，排除僵尸股
   - 多日报告 d1~d4 从历史每日报告的题材表获取，d5 从当前 top_list 缓存计算
   - `parse_daily_report` 修复：分两遍解析（主报告取题材表 + 明细报告取标的表）
+  - `gen_top_list.py` 内嵌到 `stock_trend_analysis.py`，数据获取后、报告前自动更新 top_list
   - 异常检测新增策略5：上证均线压制/支撑（MA5/10/20/30/60/120）
+  - 北交所股票（92xxxx）API 跳过，避免报错
+  - 线程池超时保护（30秒/只），防止单只股票 API 卡死整个流程
 - **当前状态**：top_list.md 作为强势标的池驱动题材统计和看板展示；多日报告历史数据不受股票池变化影响
-- **文档更新**：context.md、process_insight.md 补充相关决策和试错记录
+- **文档更新**：context.md、process_insight.md、代码使用方法.md 补充相关变更
 
 ## 2026-05-30（原条目）
 

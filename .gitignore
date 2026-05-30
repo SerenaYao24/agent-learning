@@ -17,6 +17,7 @@ node_modules/
 **/interest_stock_new.md
 **/filter/
 **/数据/
+**/*.yaml
 
 # 已学习文章（原始内容，不计入仓库）
 **/2_已学习文章/
@@ -34,3 +35,4 @@ node_modules/
 **/.index_data/
 **/.ma5_ranking/
 .playwright-mcp/
+
