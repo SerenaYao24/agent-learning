@@ -1,5 +1,29 @@
 # 中长线逻辑识别 — 状态记录
 
+## 2026-06-02（实为05-30的批量变更）
+
+- **已完成**：
+  - `generate_dashboard.py`：个股数据/题材筛选/大宗交易过滤改用 `top_list.md` 作为股票池
+  - `stock_trend_analysis.py`：日常报告和多日报告的题材统计使用 `top_list.md`，排除僵尸股
+  - 多日报告 d1~d4 从历史每日报告的题材表获取，d5 从当前 top_list 缓存计算
+  - `parse_daily_report` 修复：分两遍解析（主报告取题材表 + 明细报告取标的表）
+  - 异常检测新增策略5：上证均线压制/支撑（MA5/10/20/30/60/120）
+- **当前状态**：top_list.md 作为强势标的池驱动题材统计和看板展示；多日报告历史数据不受股票池变化影响
+- **文档更新**：context.md、process_insight.md 补充相关决策和试错记录
+
+## 2026-05-30（原条目）
+
+- **已完成**：
+  - 新增 `gen_top_list.py` 脚本：从 interest_stock.md 按题材提取近10日涨幅前15名，生成 top_list.md
+  - 新增硬编码代码映射（HARDCODED_MAP），覆盖名称→代码的自动映射缺失
+  - `test_interest_stock.md` 补充测试数据：增加特发信息、通鼎互联、新能泰山、中天科技、光电股份到光纤板块
+  - 数据补充：通鼎互联、新能泰山、光电股份、特发信息、蓝特光学等 13 只股票数据通过 akshare 实时补充
+  - `interest_stock.md` 格式规范化：所有题材标题上方增加空行（首行除外）
+  - 更新三处规则文档（涨停板复盘 context.md、matching_rules.md、公众号文章梳理 context.md）增加格式规范
+  - `top_list.md` 已生成：646 标→469 标（50 题材各保留前 15），638 只有涨幅数据
+- **当前状态**：top_list.md 可用于快速聚焦强势标的；gen_top_list.py 在项目目录可重复执行
+- **文档更新**：context.md 新增步骤 7、process_insight.md 补充决策 8~10 和试错 13、代码使用方法.md 新增 gen_top_list.py 说明
+
 ## 2026-05-27
 
 - **已完成**：

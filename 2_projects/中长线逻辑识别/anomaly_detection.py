@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-多策略异动检测：ETF异动 + 指数量能 + 震荡区间 + 赚钱效应
+多策略异动检测：ETF异动 + 指数量能 + 震荡区间 + 赚钱效应 + 上证均线支撑/压制
 
 策略 1：ETF 异动（量能超阈值 + 异常买卖滑窗检测）
 策略 2：指数量能异动（天量见顶预警）
 策略 3：指数震荡区间风险机会判断（仅上证指数）
 策略 4：赚钱效应检测（二冰/三冰 + 放量下跌）
+策略 5：上证均线支撑/压制检测（MA5/10/20/30/60/120，距收盘最近的均线）
 
 用法:
     python anomaly_detection.py                    # 检测最新交易日（全部策略）
@@ -602,6 +603,100 @@ def check_panic_sell(date_str, date_label):
     return alerts
 
 
+# ======== 策略 5: 上证均线支撑/压制检测 ========
+
+def load_all_index_data():
+    """加载全部历史指数日线数据，返回 {指数名: [{日期, 收盘}, ...]}"""
+    index_data = {}
+    for f in sorted(os.listdir(DATA_DIR)):
+        if f.startswith("index_daily_") and f.endswith(".csv"):
+            path = os.path.join(DATA_DIR, f)
+            with open(path, encoding="utf-8-sig") as fh:
+                reader = csv.DictReader(fh)
+                for row in reader:
+                    name = row.get("指数", "").strip()
+                    if not name:
+                        continue
+                    try:
+                        close = float(row.get("收盘", 0))
+                        date = row.get("日期", "").strip()
+                    except (ValueError, TypeError):
+                        continue
+                    if name not in index_data:
+                        index_data[name] = []
+                    index_data[name].append({"date": date, "close": close})
+    return index_data
+
+
+def compute_ma(prices, window):
+    """计算移动平均，返回与 prices 等长的数组，前 window-1 个为 None"""
+    result = [None] * len(prices)
+    if len(prices) < window:
+        return result
+    for i in range(window - 1, len(prices)):
+        result[i] = sum(prices[i - window + 1:i + 1]) / window
+    return result
+
+
+def check_ma_pressure_support(date_str, date_label):
+    """
+    策略 5: 上证指数均线压制/支撑检测
+    - 若收盘价上方有均线 → 找最近的均线，计算距离（点数和百分比）→ 风险标签
+    - 若收盘价下方有均线 → 找最近的均线，计算距离（点数和百分比）→ 机会标签
+    支持 MA5/10/20/30/60/120，数据不足的周期自动跳过。
+    """
+    alerts = []
+    periods = [5, 10, 20, 30, 60, 120]
+
+    # 加载全部上证指数历史数据
+    all_data = load_all_index_data()
+    sh_data = all_data.get("上证指数")
+    if not sh_data or len(sh_data) < 2:
+        print("  ⚠ 上证指数历史数据不足，跳过均线检测")
+        return alerts
+
+    closes = [d["close"] for d in sh_data]
+    latest_close = closes[-1]
+
+    # 计算各周期均线
+    mas = {}
+    for p in periods:
+        ma_vals = compute_ma(closes, p)
+        if ma_vals[-1] is not None:
+            mas[p] = ma_vals[-1]
+
+    if not mas:
+        return alerts
+
+    # 找上方最近的均线（压制/风险）
+    above = {p: v for p, v in mas.items() if v > latest_close}
+    if above:
+        closest_above_p = min(above, key=lambda p: above[p] - latest_close)
+        closest_above_v = above[closest_above_p]
+        points = round(closest_above_v - latest_close, 2)
+        pct = round((closest_above_v / latest_close - 1) * 100, 2)
+        alerts.append({
+            "type": "risk",
+            "label": f"{date_label}：上证均线压制，距离{closest_above_p}日线{points}点，{pct}%",
+            "detail": f"收盘{latest_close:.2f}，{closest_above_p}日线{closest_above_v:.2f}，上方{points}点",
+        })
+
+    # 找下方最近的均线（支撑/机会）
+    below = {p: v for p, v in mas.items() if v < latest_close}
+    if below:
+        closest_below_p = max(below, key=lambda p: latest_close - below[p])
+        closest_below_v = below[closest_below_p]
+        points = round(latest_close - closest_below_v, 2)
+        pct = round((closest_below_v / latest_close - 1) * 100, 2)
+        alerts.append({
+            "type": "opp",
+            "label": f"{date_label}：上证均线支撑，距离{closest_below_p}日线{points}点，{pct}%",
+            "detail": f"收盘{latest_close:.2f}，{closest_below_p}日线{closest_below_v:.2f}，下方{points}点",
+        })
+
+    return alerts
+
+
 # ======== 主逻辑 ========
 
 def run_detection(date_str=None, output_json=False, save_tags=False):
@@ -745,6 +840,24 @@ def run_detection(date_str=None, output_json=False, save_tags=False):
         print(f"  ⚠ 无涨跌家数数据，跳过\n")
 
     print()
+
+    # ======== 策略 5: 上证均线支撑/压制检测 ========
+    print(f"{'='*60}")
+    print(f"  策略 5: 上证均线支撑/压制检测 [{date_str}]")
+    print(f"{'='*60}\n")
+
+    ma_alerts = check_ma_pressure_support(date_str, date_label)
+    if ma_alerts:
+        for a in ma_alerts:
+            a["strategy"] = "均线支撑/压制"
+            tag_icon = "🔴" if a["type"] == "risk" else "🔵"
+            print(f"  {tag_icon} {a['label']}")
+            print(f"    └ {a['detail']}")
+    else:
+        print(f"  均线数据不足，无信号\n")
+    print()
+
+    all_alerts.extend(ma_alerts)
 
     # ======== 汇总 ========
     print(f"\n{'='*60}")

@@ -111,8 +111,9 @@ python generate_dashboard.py        # 生成 dashboard.html
 
 **大宗交易Tab**：全量数据保存到 `block_trades_*.json`，树状表格按题材分组展示自选股交易，加权折溢率，默认收起。
 **重点监控Tab**：手动录入股票监管信息，字段含名称、类型（重点监控/触发严重异动）、触发规则（30天200%/10天100%）、起止日期，过期灰显。
-**风险标签**：数据驱动（涨跌家数分析）+ 手动添加，橙色标签。
-**机会标签**：手动添加，黄绿色标签，与风险标签平行运作。
+**风险标签**：数据驱动（涨跌家数分析 + 上证均线压制 MA5/10/20/30/60/120）+ 手动添加，橙色标签。
+**机会标签**：数据驱动（涨跌家数分析 + 上证均线支撑 MA5/10/20/30/60/120）+ 手动添加，黄绿色标签，与风险标签平行运作。
+**题材统计**：使用 `top_list.md`（近10日涨幅前15）作为股票池，排除僵尸股对板块整体判断的影响。多日报告中 d1~d4 从历史每日报告的题材表获取，d5 从当前 top_list 缓存计算。
 
 ### 8. 看板服务（统一入口）
 
@@ -128,6 +129,18 @@ python dashboard_server.py          # 启动统一服务（端口 8977）
 三类经过人工参与的数据文件位于项目根目录，纳入 git 推送。`.index_data/` 和 `.ma5_ranking/` 下的原始数据不推送。
 
 前端标签/监控操作通过 fetch API 与后端通信。重新生成看板时 `generate_dashboard.py` 也从这些 JSON 文件读取数据嵌入 HTML，数据流闭环。
+
+### 7. 题材涨幅排行（按近10日涨幅筛选前15）
+
+```bash
+python3 gen_top_list.py                          # 基于 interest_stock.md 生成 top_list.md
+python3 gen_top_list.py --test                   # 测试模式（基于 test_interest_stock.md）
+```
+
+步骤：读取 interest_stock.md → 按题材分组 → 从缓存或 akshare 获取各标的近10日涨幅 → 每题材保留涨幅前15名 → 输出 top_list.md（格式与 interest_stock.md 一致）。
+- 数据来源优先缓存（`.stock_cache/stock_data.json`），缺失时自动调用 akshare 补全
+- 无数据标的放末尾并标注 `# ⚠️ 无近10日数据`
+- 代码映射支持硬编码修正（`HARDCODED_MAP`），覆盖名称映射错误
 
 ## 失败模式（Failure modes）
 

@@ -1399,6 +1399,140 @@ def get_latest_trading_date(cache: dict) -> str:
     return datetime.now().strftime("%Y-%m-%d")
 
 
+# ======== top_list 生成函数（嵌入本文件）========
+
+_HARDCODED_MAP = {
+    "杭电股份": "sh603618", "长飞光纤": "sh601869", "法尔胜": "sz000890",
+    "亨通光电": "sh600487", "华盛昌": "sz002980", "远东股份": "sh600869",
+    "三孚股份": "sh603938", "通鼎互联": "sz002491", "中天科技": "sh600522",
+    "新能泰山": "sz000720", "光电股份": "sh600184", "特发信息": "sz000070",
+    "汇源通信": "sz000586",
+}
+
+
+def _parse_sectors_for_toplist(filepath):
+    """解析 interest_stock.md，返回 {题材名: [(原始行, 股票名)]}"""
+    sectors = {}
+    current_sector = None
+    with open(filepath, 'r', encoding='utf-8') as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            if line.startswith('# '):
+                current_sector = line[2:].strip()
+                sectors[current_sector] = []
+            elif current_sector:
+                name = re.split(r'[（(【]', line)[0].strip()
+                sectors[current_sector].append((line, name))
+    return sectors
+
+
+def _get_stock_code_for_toplist(stock_name, code_map):
+    """获取股票代码（优先硬编码修正）"""
+    if stock_name in _HARDCODED_MAP:
+        return _HARDCODED_MAP[stock_name]
+    return code_map.get(stock_name)
+
+
+def _calc_10d_return(data):
+    """从缓存数据计算近10日累计涨跌幅"""
+    changes = data.get("daily_changes", [])
+    closes = data.get("close", [])
+    if not changes:
+        return None
+    recent = changes[-10:] if len(changes) >= 10 else changes
+    ret = sum(recent)
+    if len(closes) >= 2:
+        latest = closes[-1]
+        idx = max(0, len(closes) - 11)
+        old = closes[idx]
+        if old and old > 0:
+            exact = (latest - old) / old * 100
+            if abs(exact - ret) > 3:
+                ret = round(exact, 2)
+    return round(ret, 2)
+
+
+def _fetch_10d_return(code):
+    """从 akshare 获取单只股票近10日涨幅"""
+    end = datetime.now().strftime("%Y%m%d")
+    start = (datetime.now() - timedelta(days=25)).strftime("%Y%m%d")
+    try:
+        df = ak.stock_zh_a_hist_tx(symbol=code, adjust="qfq", start_date=start, end_date=end)
+        if df is None or df.empty or len(df) < 2:
+            return None
+        changes = df['close'].pct_change().fillna(0).mul(100).round(2).tolist()
+        closes = df['close'].tolist()
+        recent = changes[-10:] if len(changes) >= 10 else changes
+        ret = sum(recent)
+        if len(closes) >= 2:
+            latest = closes[-1]
+            idx = max(0, len(closes) - 11)
+            old = closes[idx]
+            if old and old > 0:
+                exact = (latest - old) / old * 100
+                if abs(exact - ret) > 3:
+                    ret = round(exact, 2)
+        return round(ret, 2)
+    except Exception:
+        return None
+
+
+def generate_top_list(input_path, output_path):
+    """
+    从 interest_stock.md 生成 top_list.md
+    对每个题材，按近10日涨幅排序，保留前15名
+    """
+    print("📌 生成 top_list.md（基于最新缓存数据）...")
+    sectors = _parse_sectors_for_toplist(input_path)
+    cache = load_cache()
+    code_map = load_stock_code_map()
+
+    for sname, stocks in sectors.items():
+        for _, name in stocks:
+            code = _get_stock_code_for_toplist(name, code_map)
+            if code and code not in cache:
+                ret = _fetch_10d_return(code)
+                # 不实际存入 cache，只是尝试获取
+
+    cache = load_cache()  # 重新读取
+
+    lines = []
+    first = True
+    for sname, stocks in sectors.items():
+        scored = []
+        for orig_line, name in stocks:
+            code = _get_stock_code_for_toplist(name, code_map)
+            if code:
+                data = cache.get(code)
+                if data:
+                    ret = _calc_10d_return(data)
+                else:
+                    ret = _fetch_10d_return(code)
+                if ret is None:
+                    ret = float('-inf')
+            else:
+                ret = float('-inf')
+            scored.append((ret, orig_line, name))
+        scored.sort(key=lambda x: x[0], reverse=True)
+        top15 = scored[:15]
+        if first:
+            lines.append(f"# {sname}")
+            first = False
+        else:
+            lines.append(f"\n# {sname}")
+        for ret, ol, _ in top15:
+            if ret == float('-inf'):
+                lines.append(f"{ol}  # ⚠️ 无近10日数据")
+            else:
+                lines.append(ol)
+
+    with open(output_path, 'w', encoding='utf-8') as f:
+        f.write('\n'.join(lines) + '\n')
+    print(f"   ✅ top_list.md 已生成")
+
+
 def main():
     parser = argparse.ArgumentParser(description='股票趋势分析工具')
     parser.add_argument('--input', '-i', type=str, required=True,
@@ -1419,12 +1553,23 @@ def main():
         print(f"❌ 输入文件不存在：{input_path}")
         return
 
+    # 自动检测 top_list.md，用于题材统计（排除僵尸股）
+    input_dir = os.path.dirname(input_path)
+    top_list_path = os.path.join(input_dir, "top_list.md")
+    sector_input_path = top_list_path if os.path.exists(top_list_path) else input_path
+    if os.path.exists(top_list_path):
+        print(f"📌 题材统计使用 top_list.md（排除僵尸股）")
+    else:
+        print(f"📌 未找到 top_list.md，题材统计使用原输入文件")
+
     # --multi 模式：直接生成多日报告，跳过单日分析
     if args.multi:
         print("="*60)
         print("📊 多日趋势汇总（强制生成模式）")
         print("="*60)
-        generate_multi_day_analysis(input_md_path=args.input)
+        generate_top_list(input_path, top_list_path)
+        sector_input_path = top_list_path
+        generate_multi_day_analysis(input_md_path=sector_input_path)
         print("\n" + "="*60)
         print("多日分析完成")
         print("="*60)
@@ -1697,9 +1842,13 @@ def main():
         print("   请检查 iCloud 同步状态或目录权限，然后重试")
         return
 
+    # 数据已全部获取完毕，更新 top_list.md
+    generate_top_list(input_path, top_list_path)
+    sector_input_path = top_list_path
+
     # 每日分析报告保存到"每日分析"子目录
     output_path = os.path.join(DAILY_REPORT_DIR, args.output)
-    rating_counts = generate_md_report(grouped_results, output_path, input_path)
+    rating_counts = generate_md_report(grouped_results, output_path, sector_input_path)
 
     # 终端打印进攻/防守标的占比（定义与多日分析报告一致）
     total_valid = sum(rating_counts.values())
@@ -1718,7 +1867,7 @@ def main():
             print("📊 强制生成模式，正在生成多日趋势分析报告...")
         else:
             print("📊 检测到新数据，正在生成多日趋势分析报告...")
-        generate_multi_day_analysis(input_md_path=args.input)
+        generate_multi_day_analysis(input_md_path=sector_input_path)
     else:
         print("\n⏭️ 本次无新数据（全部命中缓存），跳过多日报告生成")
         print("   提示：如需强制生成，请加 --force-gen 参数")
@@ -1763,7 +1912,7 @@ def parse_daily_report(report_path: str) -> dict:
             }
         }
     """
-    result = {"date": "", "stocks": {}}
+    result = {"date": "", "stocks": {}, "sectors": {}}
     filename = os.path.basename(report_path)
 
     # 从文件名提取日期
@@ -1771,12 +1920,47 @@ def parse_daily_report(report_path: str) -> dict:
     if date_match:
         result["date"] = date_match.group(1)
 
-    # 确定要解析的文件：主报告找不到标的表时，尝试 _detail 文件
-    files_to_try = [report_path]
-    if not filename.endswith('_detail.md'):
-        detail_path = report_path.replace('.md', '_detail.md')
-        files_to_try.append(detail_path)
+    # 确定要解析的文件对：主报告（含题材表）+ 明细报告（含标的表）
+    main_path = report_path
+    detail_path = report_path.replace('.md', '_detail.md') if not filename.endswith('_detail.md') else None
 
+    # 第1遍：从主报告解析题材分析表
+    if os.path.isfile(main_path):
+        try:
+            with open(main_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            sector_start = content.find("| 题材名称 | 平均涨幅 |")
+            if sector_start != -1:
+                sector_end = content.find("### ", sector_start)
+                if sector_end == -1:
+                    sector_end = content.find("\n## ", sector_start)
+                if sector_end == -1:
+                    sector_end = len(content)
+                sector_text = content[sector_start:sector_end]
+                sec_lines = [l.strip() for l in sector_text.split('\n') if l.strip().startswith('|')]
+                for sl in sec_lines[2:]:
+                    sp = [p.strip() for p in sl.split('|') if p.strip()]
+                    if len(sp) >= 4:
+                        s_name = re.sub(r'\*+', '', sp[0]).strip()
+                        try:
+                            avg_ret = float(sp[1].replace('%', ''))
+                            s_count = int(sp[2])
+                            gt5_str = sp[3]
+                            gt5 = int(gt5_str.split('/')[0]) if '/' in gt5_str else (int(gt5_str) if gt5_str.isdigit() else 0)
+                            result["sectors"][s_name] = {
+                                "avg_return": avg_ret,
+                                "count": s_count,
+                                "gt5_count": gt5,
+                            }
+                        except (ValueError, IndexError):
+                            continue
+        except Exception as e:
+            print(f"解析题材表 {main_path} 失败: {e}")
+
+    # 第2遍：从明细报告解析标的表
+    files_to_try = [report_path]
+    if detail_path and os.path.isfile(detail_path):
+        files_to_try.append(detail_path)
     for try_path in files_to_try:
         if not os.path.isfile(try_path):
             continue
@@ -2299,14 +2483,26 @@ def generate_multi_day_analysis(days_to_analyze: int = 10, input_md_path: str = 
     parsed_reports.sort(key=lambda x: x["date"])
 
     # ========== 第2.5步：构建题材时间序列分析 ==========
+    # d1~d4 从历史每日报告的题材表中获取（股票池变化不影响历史数据）
+    # d5 从 top_list 缓存计算
     cache_data = load_cache()
     sector_time_series = build_sector_time_series(cache_data, input_md_path) if cache_data else []
 
-    # 为每个题材判断状态
+    # 将历史题材表数据合并到 sector_time_series
+    hist_reports = parsed_reports[:4]  # 最多取4份历史
+    hist_sectors = {}  # {sector_name: {date_index: avg_return}}
+    for i, report_data in enumerate(hist_reports):
+        date_key = f"d{i+1}" if i < 4 else f"d{i+1}"
+        for s_name, s_info in report_data.get("sectors", {}).items():
+            if s_name not in hist_sectors:
+                hist_sectors[s_name] = {}
+            hist_sectors[s_name][date_key] = s_info.get("avg_return", 0)
+
     for st in sector_time_series:
+        s_name = st["sector_name"]
+        st["hist_daily"] = hist_sectors.get(s_name, {})
         st["status"] = judge_sector_status(st)
 
-    # 按近5日涨幅从大到小排序
     sector_time_series.sort(key=lambda x: x.get("return_5d", -999), reverse=True)
 
     # ========== 第2步：汇总所有标的的评级历史（含去重）==========
@@ -2468,15 +2664,24 @@ def generate_multi_day_analysis(days_to_analyze: int = 10, input_md_path: str = 
             status = st["status"]
             gt5_ratio = st.get("gt5_ratio", 0)
 
-            # 取近5日每日日均涨幅（从早到晚：d1=最早, d5=最新）
-            daily_avgs = st.get("daily_avgs", [])
-            last_5_avgs = daily_avgs[-5:] if len(daily_avgs) >= 5 else daily_avgs
-            # 填充到5个位置，不足的用"-"
+            # d1~d4 从历史每日报告题材表获取（排除股票池变化的影响）
+            hist_daily = st.get("hist_daily", {})
+            hist_keys = ["d1", "d2", "d3", "d4"]
             d_vals = []
-            for _, avg in last_5_avgs:
-                d_vals.append(f"{avg:+.2f}%")
+            for hk in hist_keys:
+                if hk in hist_daily:
+                    d_vals.append(f"{hist_daily[hk]:+.2f}%")
+                else:
+                    d_vals.append("-")
+            # d5 从缓存（top_list 股票）计算
+            daily_avgs = st.get("daily_avgs", [])
+            if daily_avgs:
+                d5_avg = daily_avgs[-1][1] if len(daily_avgs[-1]) > 1 else daily_avgs[-1]
+                d_vals.append(f"{d5_avg:+.2f}%" if isinstance(d5_avg, (int, float)) else str(d5_avg))
+            else:
+                d_vals.append("-")
             while len(d_vals) < 5:
-                d_vals.insert(0, "-")
+                d_vals.append("-")
 
             # 所有状态都显示明星标的
             top3 = st.get("top_stocks_today", [])

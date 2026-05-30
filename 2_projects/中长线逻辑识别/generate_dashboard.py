@@ -56,8 +56,11 @@ def load_filter_tags():
 
 
 def load_watched_stocks():
-    """从 interest_stock.md 提取关注的股票: {名称: {theme, note}}, theme_order"""
-    path = os.path.join(DATA_DIR, "interest_stock.md")
+    """从 top_list.md 提取关注的股票: {名称: {theme, note}}, theme_order
+    只显示近10日涨幅前15的强势标的，排除僵尸股"""
+    path = os.path.join(DATA_DIR, "top_list.md")
+    if not os.path.exists(path):
+        path = os.path.join(DATA_DIR, "interest_stock.md")  # fallback
     stocks = {}  # name -> {theme, note}
     codes = set()
     theme_order = []  # 题材出现顺序
