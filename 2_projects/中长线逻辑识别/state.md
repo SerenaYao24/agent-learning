@@ -1,6 +1,22 @@
 # 中长线逻辑识别 — 状态记录
 
-## 2026-05-30（批量变更）
+## 2026-05-30（晚间 — 看板重构 + 5日线角度Tab）
+
+- **已完成**：
+  - `generate_dashboard.py` 重构：不再内嵌数据到 HTML，改为写入 6 个数据文件到 `.index_data/` + 生成 ~54KB 瘦身 HTML，通过 `/api/data/*` 异步加载
+  - 新增「5日线角度」Tab（板块数据与个股数据之间）：近5日 MA5 排名变化对比（绿+升/橙-降）、题材标签筛选（top3 平均排名）
+  - `_gen_ma5_trend.py` 多项修复：CSV 表头中英文兼容、代码去前缀统一、全角→半角标准化（`unicodedata.normalize('NFKC')`）、仅取前 200 名、新进标的用 `200-排名` 计算增幅
+  - 去掉 sector 过滤，展示全部 200 只标的
+  - 大宗交易题材按平均折溢率从大到小排列
+  - 重点监控按开始时间从近到远排列，结束时间改为 10 个交易日（剔除周末）
+  - 修复 dashboard HTML 排版：防守票 `</div>` 缺失、tabs 与 opp-tags 分隔
+  - `daily_run.py` 移除 `_unbundle_dashboard.py` 步骤（不再需要后处理）
+  - `context.md` + `daily_run.py` 中 `python` → `python3` 统一，移除失效的 `gen_top_list.py` 独立命令
+  - 上下文文档新增约束：禁止直接修改 `dashboard.html`
+- **当前状态**：看板生成一条命令产出数据文件 + 瘦身 HTML；`_unbundle_dashboard.py` 退役；5日线角度 Tab 可用
+- **文档更新**：context.md、代码使用方法.md、process_insight.md 同步更新
+
+## 2026-05-30（原条目）
 
 - **已完成**：
   - `generate_dashboard.py`：个股数据/题材筛选/大宗交易过滤改用 `top_list.md` 作为股票池
