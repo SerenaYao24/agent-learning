@@ -42,12 +42,17 @@ https://mp.weixin.qq.com/s/ectGQZoiMjA3Uv9Qu8PPuw
 https://mp.weixin.qq.com/s/hJWlglHBTpwMNYK-CgtUEg
 一九行情会加大震荡行情的抓节奏难度，我觉得最好的策略还是看图，持有的股图走的好就继续拿，走差了就抓紧走，题材的好坏其实并不重要，
 
-https://mp.weixin.qq.com/s/AmefTm2QXGmRKMVHPr4sJw
+https://mp.weixin.qq.com/s/cWCiR5-e5OqYTZnNll9yAQ
+2,5,8,11月月底最后一个交易日是msci的调仓日，这些月份的最后一个交易日的尾盘集合竞价会有大额调仓，这个一般都是提前两周就公布的，集合竞价会拉升价格，后续可以留意。
 
+https://mp.weixin.qq.com/s/nZZ2SHGWN9xCgs9kJSjSAg
+高位不好赚钱，超跌有赚钱效应后，市场会走向均衡，鲸落万物生，机器人（跟着 AI 硬件一起死了）、消费、电力、ai漫剧等
 
+https://mp.weixin.qq.com/s/8bVflHLwPYPv4kcKzOLe7Q
+海外链对于市场有号召力与带动性。海外链当天共振强的话，通常对整个盘面的带动性会很强，而国内链或者其他板块哪怕日内爆发，基本当天往往是很割裂的。
 
-
-
+https://mp.weixin.qq.com/s/Mxm0pR15qmgYDRHvZ5ZGUQ
+大波段行情想要结束，必须满足增量资金正循环无以为继，2015那种；产业趋势阶段性证伪，2021那种；宏观环境趋势性恶化2018那种。这三个条件中至少一个。
 
 【个人总结】
 1. 当一个策略被识别到的时候，就会有人拿这个策略的先手，导致执行策略不的资金不够多的时候，策略开始失效
@@ -84,3 +89,5 @@ https://mp.weixin.qq.com/s/AmefTm2QXGmRKMVHPr4sJw
 要参与与量化的博弈，他们可能不懂人性，但是他们懂数据，他们没有 FOMO，他们能学会市场所有的波动规律，
 但他们需要时间，你需要比他们更快感知、执行、调整
 现在已知的量化策略：均线压制、均线支撑、指数高开必砸（最终指数能否稳住，需要看其他量化资金的承接力度）
+
+5. 新警察故事：如果轻敌，那就只能败北；没有金刚钻就别揽瓷器活，遇事冷静
