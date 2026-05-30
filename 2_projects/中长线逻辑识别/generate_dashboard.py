@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""生成静态数据看板 HTML: 指数宏观 / ETF宏观 / 板块数据 / 个股数据 (4 Tab)"""
+"""生成数据看板: 数据文件写入 .index_data/ + 瘦身 HTML（6 Tab，通过 /api/data/* 动态加载）"""
 import csv, json, os, re, glob
 from datetime import datetime
 
@@ -360,9 +360,19 @@ def load_daily_kline(name, prefix="index"):
     return result
 
 
+def _write_data_file(fname, content):
+    """Write data file to .index_data/ for /api/data/* consumption."""
+    path = os.path.join(INDEX_DIR, fname)
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(content)
+    size_kb = len(content.encode("utf-8")) / 1024
+    print(f"  ✓ {fname} ({size_kb:.0f} KB)")
+
+
 # ======== HTML 生成 ========
 
 def build_html():
+    print("写入数据文件到 .index_data/ ...")
     all_dates = sorted(load_daily("index").keys())
     latest_date = all_dates[-1] if all_dates else "2026-05-22"
     last5 = all_dates[-5:] if len(all_dates) >= 5 else all_dates
@@ -504,10 +514,6 @@ def build_html():
             prev_report = os.path.join(dir_name, f"multi_day_trend_{prev_date}.md")
             prev_attack, prev_defense = parse_attack_defense_ratio(prev_report)
 
-    # ---- 嵌入 JSON ----
-    index_json = json.dumps(index_data, ensure_ascii=False, default=str)
-    etf_json = json.dumps(etf_data, ensure_ascii=False, default=str)
-    rank_json = json.dumps(ranking[:30], ensure_ascii=False, default=str) if ranking else "[]"
     # 按题材树状结构 + 加权平均折溢率
     # 最新交易日（用于标记今日新增）
     latest_trade_date = max((r["日期"] for r in block_trades), default="")
@@ -541,7 +547,6 @@ def build_html():
             "new_count": new_count,
             "trades": sorted(t["trades"], key=lambda x: x["日期"], reverse=True),
         })
-    block_json = json.dumps(block_tree, ensure_ascii=False, default=str)
     monitor_json = json.dumps(monitor_data, ensure_ascii=False, default=str)
 
     # ---- 板块数据 ----
@@ -572,10 +577,17 @@ def build_html():
                 f"cum5d:{json.dumps(info['cum5d'])}"
                 f"}}"
             )
-        return "var STOCK_MAP={"+",".join(lines)+"};"
-
-    stock_js_block = _make_stock_js() if stock_map else "var STOCK_MAP={};"
-    sector_json = json.dumps(sector_data, ensure_ascii=False)
+        return "{" + ",".join(lines) + "}"
+    
+    # 将数据写入 .index_data/ 供 dashboard_server.py 的 /api/data/* 端点消费
+    os.makedirs(INDEX_DIR, exist_ok=True)
+    stock_js_raw = _make_stock_js() if stock_map else "{}"
+    _write_data_file("stock_map.js", stock_js_raw)
+    _write_data_file("index_chart.js", json.dumps(index_data, ensure_ascii=False, default=str))
+    _write_data_file("etf_chart.js", json.dumps(etf_data, ensure_ascii=False, default=str))
+    _write_data_file("ranking.json", json.dumps(ranking[:30], ensure_ascii=False, default=str) if ranking else "[]")
+    _write_data_file("block.json", json.dumps(block_tree, ensure_ascii=False, default=str))
+    _write_data_file("sector.json", json.dumps(sector_data, ensure_ascii=False))
 
     # 计算每个题材的日平均涨幅 (d1-d5)，按降序排列 pills
     theme_avg_map = {}
@@ -613,7 +625,7 @@ body{{background:#0a0e17;color:#e0e6ed;font-family:'Fira Sans',-apple-system,san
 .header .date{{font-size:13px;color:#6b7d95}}
 
 /* Tabs */
-.tabs{{display:flex;gap:0;padding:0 24px;border-bottom:1px solid #1e2a3a}}
+.tabs{{display:flex;gap:0;padding:8px 24px 0;border-bottom:1px solid #1e2a3a;border-top:1px solid #1e2a3a;margin-top:4px}}
 .tab-btn{{padding:10px 20px;font-size:13px;color:#6b7d95;background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;transition:all .2s;font-family:inherit}}
 .tab-btn:hover{{color:#94a3b8}}
 .tab-btn.active{{color:#3b82f6;border-bottom-color:#3b82f6}}
@@ -746,6 +758,7 @@ body{{background:#0a0e17;color:#e0e6ed;font-family:'Fira Sans',-apple-system,san
   <div class="indicator">
     <span class="label">防守票</span>
     <span class="value-row"><span class="value">{f'{defense_pct:.1f}%' if defense_pct is not None else '—'}</span><span class="sub" style="font-size:11px;margin-left:4px;color:#f0f4f8">{'↑' if prev_defense and defense_pct and defense_pct > prev_defense else ('↓' if prev_defense and defense_pct and defense_pct < prev_defense else '—')}{f'{abs(defense_pct - prev_defense):.1f}%' if prev_defense is not None and defense_pct is not None else ''}</span></span>
+  </div>
   <div class="indicator" id="index-state-indicator">
     <span class="label">指数状态</span>
     <select id="index-state-select" onchange="onIndexStateChange(this.value)" style="padding:4px 8px;border-radius:6px;font-size:12px;background:#1e2a3a;color:#e0e6ed;border:1px solid #334155;font-family:inherit;cursor:pointer;margin-top:2px">
@@ -809,8 +822,8 @@ body{{background:#0a0e17;color:#e0e6ed;font-family:'Fira Sans',-apple-system,san
 </div>
 
 <script>
-// ========== 个股数据 (内嵌 STOCK_MAP) ==========
-{stock_js_block}
+// ========== 个股数据 (通过 /api/data/stock-map 动态加载) ==========
+var STOCK_MAP={{}};
 
 // ========== 风险标签 ==========
 var _riskState = {{"manual":[],"deleted":[]}};
@@ -1177,7 +1190,7 @@ function render5Day(chartId, m5ByDate, isETF) {{
 
 // ========== 构建指数网格 ==========
 function buildIndexGrid() {{
-  const DATA = {index_json};
+  const DATA = (window._CHART_BUILDINDEXGRID||[]);
   const grid = document.getElementById('grid-index');
   if (!grid) return;
 
@@ -1215,7 +1228,7 @@ function buildIndexGrid() {{
 
 // ========== 构建 ETF 网格 ==========
 function buildEtfGrid() {{
-  const DATA = {etf_json};
+  const DATA = (window._CHART_BUILDETFGRID||[]);
   const grid = document.getElementById('grid-etf');
   if (!grid || !DATA.length) return;
 
@@ -1252,7 +1265,7 @@ function buildEtfGrid() {{
 
 // ========== MA5排行表 ==========
 function buildRankTable() {{
-  const data = {rank_json};
+  const data = (window._CHART_BUILDRANKTABLE||[]);
   const el = document.getElementById('rank-table-body');
   if (!el || !data.length) return;
   let html = '';
@@ -1266,7 +1279,7 @@ function buildRankTable() {{
 
 // ========== 大宗交易表格 (树状) ==========
 function buildBlockTable() {{
-  const data = {block_json};
+  const data = (window._CHART_BUILDBLOCKTABLE||[]);
   const el = document.getElementById('block-table');
   if (!el) return;
   if (!data.length) {{
@@ -1301,7 +1314,7 @@ function toggleTheme(row) {{
 
 // ========== 板块数据表格 ==========
 function buildSectorTable() {{
-  var data = {sector_json};
+  var data = (window._CHART_BUILDSECTORTABLE||[]);
   var el = document.getElementById('sector-table-body');
   if (!el || !data.length) {{
     if (el) el.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:24px;color:#6b7d95">暂无板块数据</td></tr>';
@@ -1635,14 +1648,27 @@ function onIndexStateChange(state) {{
   fetch('/api/index-state',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{state:state}})}}).catch(function(){{}});
 }}
 
+// ===== 异步加载图表数据 =====
+var _DATA_LOADED = false;
+function loadAllData(cb) {{
+  if (_DATA_LOADED) {{ cb(); return; }}
+  var pending = 6, done = function(){{ if (--pending <= 0) {{ _DATA_LOADED = true; cb(); }} }};
+  [{{s:'/api/data/stock-map'}}, {{s:'/api/data/index-chart'}}, {{s:'/api/data/etf-chart'}}]
+    .forEach(function(x){{ var el=document.createElement('script'); el.src=x.s; el.onload=done; el.onerror=done; document.head.appendChild(el); }});
+  [{{u:'/api/data/ranking', n:'_CHART_BUILDRANKTABLE'}}, {{u:'/api/data/block', n:'_CHART_BUILDBLOCKTABLE'}}, {{u:'/api/data/sector', n:'_CHART_BUILDSECTORTABLE'}}]
+    .forEach(function(f){{ fetch(f.u).then(function(r){{return r.json();}}).then(function(d){{ window[f.n]=d; done(); }}).catch(done); }});
+}}
+
 // ========== 初始化 ==========
 document.addEventListener('DOMContentLoaded', function() {{
   loadRiskState();
   loadOppState();
   loadIndexState();
-  buildIndexGrid();
-  buildRankTable();
-  _tabRendered['index'] = true;
+  loadAllData(function() {{
+    buildIndexGrid();
+    buildRankTable();
+    _tabRendered['index'] = true;
+  }});
 }});
 </script>
 </body>
