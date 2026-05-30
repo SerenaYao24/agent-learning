@@ -100,6 +100,24 @@ def find_latest_multi_report():
     return files[-1] if files else None
 
 
+def parse_attack_defense_ratio(report_path):
+    """从多日报告解析进攻票/防守票占比。
+    Returns (attack_pct, defense_pct) as floats, or (None, None) on failure.
+    示例行: '进攻票占比：30.1% ... | 防守票占比：69.9% ...'"""
+    if not report_path or not os.path.exists(report_path):
+        return None, None
+    try:
+        with open(report_path, encoding='utf-8') as f:
+            text = f.read()
+        m = re.search(r'进攻票占比[：:]\s*\*{0,2}\s*([\d.]+)%', text)
+        d = re.search(r'防守票占比[：:]\s*\*{0,2}\s*([\d.]+)%', text)
+        attack = float(m.group(1)) if m else None
+        defense = float(d.group(1)) if d else None
+        return attack, defense
+    except Exception:
+        return None, None
+
+
 def parse_sector_overview(report_path):
     """Parse the '题材情况' table from a multi-day report.
     Returns [{name, status, ret_5d, gt5_pct, stars}, ...]"""
@@ -471,6 +489,21 @@ def build_html():
     idx_state = load_index_state()
     index_state_default = idx_state.get("state", "区间震荡")
 
+    # ---- 进攻票/防守票占比 ----
+    latest_report = find_latest_multi_report()
+    attack_pct, defense_pct = parse_attack_defense_ratio(latest_report) if latest_report else (None, None)
+    # 获取前一日数据用于计算变化
+    prev_attack, prev_defense = None, None
+    if latest_report:
+        prev_report_path = latest_report.replace('.md', '')  # will be .../multi_day_trend_2026-05-29
+        date_str = re.search(r'(\d{4}-\d{2}-\d{2})', prev_report_path)
+        if date_str:
+            from datetime import datetime as _dt, timedelta as _td
+            prev_date = (_dt.strptime(date_str.group(1), '%Y-%m-%d') - _td(days=1)).strftime('%Y-%m-%d')
+            dir_name = os.path.dirname(latest_report)
+            prev_report = os.path.join(dir_name, f"multi_day_trend_{prev_date}.md")
+            prev_attack, prev_defense = parse_attack_defense_ratio(prev_report)
+
     # ---- 嵌入 JSON ----
     index_json = json.dumps(index_data, ensure_ascii=False, default=str)
     etf_json = json.dumps(etf_data, ensure_ascii=False, default=str)
@@ -593,6 +626,7 @@ body{{background:#0a0e17;color:#e0e6ed;font-family:'Fira Sans',-apple-system,san
 .indicator{{display:flex;flex-direction:column}}
 .indicator .label{{font-size:11px;color:#6b7d95;text-transform:uppercase;letter-spacing:.5px}}
 .indicator .value{{font-size:22px;font-weight:700;color:#f0f4f8;margin-top:2px}}
+.indicator .value-row{{display:flex;flex-direction:row;align-items:baseline;gap:4px}}
 .value.up{{color:#ef4444}}
 .value.down{{color:#10b981}}
 .indicator .sub{{font-size:12px;color:#3b82f6;margin-top:2px}}
@@ -705,6 +739,13 @@ body{{background:#0a0e17;color:#e0e6ed;font-family:'Fira Sans',-apple-system,san
     <span class="label">成交额</span>
     <span class="value">{total_amt_yi:.2f}<span class="sub">万亿</span></span>
   </div>
+  <div class="indicator">
+    <span class="label">进攻票</span>
+    <span class="value-row"><span class="value">{f'{attack_pct:.1f}%' if attack_pct is not None else '—'}</span><span class="sub" style="font-size:11px;margin-left:4px;color:#f0f4f8">{'↑' if prev_attack and attack_pct and attack_pct > prev_attack else ('↓' if prev_attack and attack_pct and attack_pct < prev_attack else '—')}{f'{abs(attack_pct - prev_attack):.1f}%' if prev_attack is not None and attack_pct is not None else ''}</span></span>
+  </div>
+  <div class="indicator">
+    <span class="label">防守票</span>
+    <span class="value-row"><span class="value">{f'{defense_pct:.1f}%' if defense_pct is not None else '—'}</span><span class="sub" style="font-size:11px;margin-left:4px;color:#f0f4f8">{'↑' if prev_defense and defense_pct and defense_pct > prev_defense else ('↓' if prev_defense and defense_pct and defense_pct < prev_defense else '—')}{f'{abs(defense_pct - prev_defense):.1f}%' if prev_defense is not None and defense_pct is not None else ''}</span></span>
   <div class="indicator" id="index-state-indicator">
     <span class="label">指数状态</span>
     <select id="index-state-select" onchange="onIndexStateChange(this.value)" style="padding:4px 8px;border-radius:6px;font-size:12px;background:#1e2a3a;color:#e0e6ed;border:1px solid #334155;font-family:inherit;cursor:pointer;margin-top:2px">
