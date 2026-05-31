@@ -732,7 +732,12 @@ function buildMa5Trend() {
   if (pillsEl) {
     var pillHtml = '<button class="theme-pill active" data-theme="_all" onclick="filterMa5Theme(this,\'_all\')">全部 ' + stocks.length + '</button>';
     tags.forEach(function(t) {
-      pillHtml += '<button class="theme-pill" data-theme="' + t.name + '" onclick="filterMa5Theme(this,\'' + t.name + '\')">' + t.name + ' ' + (typeof t.avg_rank==='number' ? t.avg_rank : '-') + '</button>';
+      var dotStr = '';
+      var ft = _stockFilterTags;
+      var tagList = [];
+      for (var fk in ft) { if (ft[fk].indexOf(t.name) >= 0) tagList.push(fk); }
+      if (tagList.length) dotStr = '<span class="filter-dot" title="' + tagList.join(', ') + '"></span>';
+      pillHtml += '<button class="theme-pill" data-theme="' + t.name + '" onclick="filterMa5Theme(this,\'' + t.name + '\')" style="position:relative">' + t.name + ' ' + (typeof t.avg_rank==='number' ? t.avg_rank : '-') + dotStr + '</button>';
     });
     pillsEl.innerHTML = pillHtml;
   }
@@ -823,7 +828,7 @@ function buildSectorTable() {
 var _stockTabBuilt = false;
 var _stockThemeOrder = ["金刚石", "消费", "AI 消费电子", "MLCC 电容", "电子布", "电力", "先进封装", "地产", "PCB", "磷化铟", "生物医药", "光通信", "光伏", "半导体设备", "国产芯片", "CPO", "AIDC-电源/发电机", "稀土", "光纤", "半导体材料", "碳化硅", "AI PC", "PCB 钻针", "玻璃基板（CPU）", "AI 应用", "AIDC-变压器", "PCB 铜箔/覆铜板", "机器人", "液冷", "物理AI（机器视觉）", "商业航天", "电池/储能", "电阻电容（其他）", "算力调度/算力工厂", "存储", "算力租赁", "核电", "量子计算", "燃气/氢能", "半导体洁净室", "油运", "CPU", "小金属/贵金属", "两存股权", "燃气轮机", "功率半导体", "未匹配题材"];
 var _stockThemeAvg = {"金刚石": 5.56, "MLCC 电容": 3.37, "电力": 2.11, "电子布": 2.51, "PCB 铜箔/覆铜板": -0.69, "PCB": 1.18, "消费": 3.94, "AI 消费电子": 3.7, "光通信": 0.49, "地产": 1.99, "先进封装": 2.0, "小金属/贵金属": -2.87, "半导体材料": 0.01, "AIDC-电源/发电机": 0.18, "PCB 钻针": -0.18, "机器人": -0.72, "电阻电容（其他）": -1.18, "功率半导体": -6.85, "CPO": 0.19, "光伏": 0.26, "碳化硅": -0.11, "AIDC-变压器": -0.5, "生物医药": 0.55, "磷化铟": 1.14, "光纤": 0.07, "稀土": 0.1, "国产芯片": 0.25, "AI PC": -0.15, "玻璃基板（CPU）": -0.22, "半导体设备": 0.25, "AI 应用": -0.38, "物理AI（机器视觉）": -0.91, "商业航天": -0.98, "燃气轮机": -6.07, "量子计算": -1.8, "液冷": -0.88, "算力租赁": -1.6, "算力调度/算力工厂": -1.3, "电池/储能": -1.04, "存储": -1.35, "核电": -1.66, "燃气/氢能": -2.25, "CPU": -2.75, "半导体洁净室": -2.51, "油运": -2.65, "两存股权": -4.08};
-var _stockFilterTags = {"抗跌题材": ["电阻电容"], "加强题材": []};
+var _stockFilterTags = {"抗跌题材": ["光纤", "地产", "电力", "金刚石", "PCB", "液冷", "电子布"], "加强题材": ["光纤", "地产", "电力"]};
 var _stockDefaultTheme = '金刚石';
 
 function buildStockTab() {

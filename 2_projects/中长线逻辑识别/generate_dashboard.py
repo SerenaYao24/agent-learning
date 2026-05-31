@@ -1345,7 +1345,12 @@ function buildMa5Trend() {{
   if (pillsEl) {{
     var pillHtml = '<button class="theme-pill active" data-theme="_all" onclick="filterMa5Theme(this,\\'_all\\')">全部 ' + stocks.length + '</button>';
     tags.forEach(function(t) {{
-      pillHtml += '<button class="theme-pill" data-theme="' + t.name + '" onclick="filterMa5Theme(this,\\'' + t.name + '\\')">' + t.name + ' ' + (typeof t.avg_rank==='number' ? t.avg_rank : '-') + '</button>';
+      var dotStr = '';
+      var ft = _stockFilterTags;
+      var tagList = [];
+      for (var fk in ft) {{ if (ft[fk].indexOf(t.name) >= 0) tagList.push(fk); }}
+      if (tagList.length) dotStr = '<span class=\"filter-dot\" title=\"' + tagList.join(', ') + '\"></span>';
+      pillHtml += '<button class="theme-pill" data-theme="' + t.name + '" onclick="filterMa5Theme(this,\\'' + t.name + '\\')" style="position:relative">' + t.name + ' ' + (typeof t.avg_rank==='number' ? t.avg_rank : '-') + dotStr + '</button>';
     }});
     pillsEl.innerHTML = pillHtml;
   }}
