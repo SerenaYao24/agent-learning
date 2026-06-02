@@ -10,6 +10,7 @@ RISK_TAGS_FILE = os.path.join(DATA_DIR, "risk_tags.json")
 MONITOR_FILE = os.path.join(DATA_DIR, "monitor.json")
 OPP_TAGS_FILE = os.path.join(DATA_DIR, "opp_tags.json")
 INDEX_STATE_FILE = os.path.join(DATA_DIR, "index_state.json")
+INDEX_LEVELS_FILE = os.path.join(DATA_DIR, "index_levels.json")
 
 os.makedirs(INDEX_DIR, exist_ok=True)
 
@@ -33,7 +34,9 @@ class DashboardHandler(SimpleHTTPRequestHandler):
         p = parsed.path
         if p.startswith("/api/"):
             return ""  # API 请求不走文件
-        return super().translate_path(path)
+        # 静态文件从 DATA_DIR（项目目录）提供
+        p = p.lstrip("/")
+        return os.path.join(DATA_DIR, p) if p else DATA_DIR
 
     def do_GET(self):
         parsed = urlparse(self.path)
@@ -87,6 +90,9 @@ class DashboardHandler(SimpleHTTPRequestHandler):
         elif path == "/api/index-state":
             data = read_json(INDEX_STATE_FILE, {"state": "区间震荡"})
             self._json_response(data)
+        elif path == "/api/index-levels":
+            data = read_json(INDEX_LEVELS_FILE, {"lines": []})
+            self._json_response(data)
         else:
             super().do_GET()
 
@@ -124,19 +130,15 @@ class DashboardHandler(SimpleHTTPRequestHandler):
                 self._json_response({"ok": True})
             except Exception as e:
                 self._json_response({"ok": False, "error": str(e)}, 400)
+        elif path == "/api/index-levels":
+            try:
+                data = json.loads(body)
+                write_json(INDEX_LEVELS_FILE, data)
+                self._json_response({"ok": True})
+            except Exception as e:
+                self._json_response({"ok": False, "error": str(e)}, 400)
         else:
             self._json_response({"error": "not found"}, 404)
-
-
-    def _serve_file(self, path, content_type):
-        with open(path, "rb") as f:
-            body = f.read()
-        self.send_response(200)
-        self.send_header("Content-Type", content_type + "; charset=utf-8")
-        self.send_header("Content-Length", len(body))
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.end_headers()
-        self.wfile.write(body)
 
     def _serve_file(self, fpath, content_type):
         with open(fpath, "rb") as f:

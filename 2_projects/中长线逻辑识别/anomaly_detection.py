@@ -401,8 +401,23 @@ def check_index_volume(date_str, date_label):
 
 # ======== 策略 3: 指数震荡区间风险机会判断 ========
 
-# 上证指数日K 水平划线（与 dashboard 固定关键位保持一致）
-SZ_LINES = [4200, 4050, 4000, 3940, 3794]  # 从高到低
+def load_index_levels():
+    """从 index_levels.json 读取上证指数日K 水平线（唯一数据源）"""
+    path = os.path.join(PROJECT_DIR, "index_levels.json")
+    if os.path.exists(path):
+        try:
+            with open(path, encoding="utf-8") as f:
+                data = json.load(f)
+                lines = [l["y"] for l in data.get("lines", [])]
+                if lines:
+                    return sorted(lines, reverse=True)  # 从高到低
+        except Exception:
+            pass
+    # fallback
+    return [4200, 4050, 4000, 3940, 3794]
+
+
+SZ_LINES = load_index_levels()
 
 
 def load_index_state():

@@ -994,6 +994,8 @@ function makeChart(domId, option) {{
   const el = document.getElementById(domId);
   if (!el) return null;
   try {{
+    const old = echarts.getInstanceByDom(el);
+    if (old) old.dispose();
     const c = echarts.init(el, null, {{renderer:'canvas'}});
     c.setOption(Object.assign({{}}, BASE_OPTION, option));
     return c;
@@ -1066,11 +1068,79 @@ function renderMinute(chartId, minuteData, prevClose, indexName, isETF) {{
   }});
 }}
 
+// ========== 上证指数水平线（全局状态 + 编辑面板） ==========
+var _indexLevels = {{lines:[
+  {{y:4200,color:'#10b981',label:'4200'}},
+  {{y:4050,color:'#fbbf24',label:'4050'}},
+  {{y:4000,color:'#ef4444',label:'4000'}},
+  {{y:3940,color:'#ef4444',label:'3940'}},
+  {{y:3794,color:'#ef4444',label:'3794'}}
+]}};
+function loadIndexLevels() {{
+  fetch('/api/index-levels').then(r=>r.json()).then(function(d){{ _indexLevels=d; renderLevelEditor(); refreshKline(); }}).catch(function(){{}});
+}}
+function saveIndexLevels(data) {{
+  _indexLevels = data;
+  fetch('/api/index-levels',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify(data)}}).catch(function(){{}});
+}}
+function renderLevelEditor() {{
+  var el = document.getElementById('idx_levels');
+  if (!el) return;
+  var lines = (_indexLevels.lines||[]).slice().sort(function(a,b){{return b.y-a.y;}});
+  var html = '';
+  lines.forEach(function(l,i){{
+    html += '<span style=\"display:inline-flex;align-items:center;gap:3px;margin-right:8px;padding:1px 5px;border-radius:3px;background:#1a1f2e;border:1px solid #334155;\">';
+    html += '<span style=\"width:8px;height:8px;border-radius:50%;background:'+l.color+'\"></span>';
+    html += '<input type=\"number\" value=\"'+l.y+'\" onchange=\"onLvlChange('+i+',\\'y\\',this.value)\" style=\"width:44px;background:transparent;color:#e0e6ed;border:none;font-size:11px;padding:1px 2px;text-align:center;outline:none\">';
+    html += '<input type=\"color\" value=\"'+l.color+'\" onchange=\"onLvlChange('+i+',\\'color\\',this.value)\" style=\"width:18px;height:15px;border:none;background:none;cursor:pointer;padding:0;vertical-align:middle\">';
+    html += '<button onclick=\"deleteLevel('+i+')\" style=\"background:none;border:none;color:#6b7d95;cursor:pointer;font-size:12px;line-height:1;padding:0 1px\" title=\"删除\">&times;</button>';
+    html += '</span>';
+  }});
+  html += '<button onclick=\"addLevel()\" style=\"padding:1px 6px;border-radius:3px;font-size:11px;background:transparent;color:#3b82f6;border:1px dashed #1d4ed8;cursor:pointer;font-family:inherit;margin-left:4px\">+</button>';
+  el.innerHTML = html;
+}}
+function onLvlChange(idx, field, val) {{
+  if (field==='y') {{ _indexLevels.lines[idx].y = parseFloat(val)||_indexLevels.lines[idx].y; }}
+  if (field==='color') {{ _indexLevels.lines[idx].color = val; }}
+  saveIndexLevels(_indexLevels);
+  refreshKline();
+}}
+function addLevel() {{
+  var lines = _indexLevels.lines||[];
+  lines.push({{y: lines.length ? lines[lines.length-1].y : 4000, color:'#fbbf24', label:'4000'}});
+  saveIndexLevels(_indexLevels);
+  renderLevelEditor();
+  refreshKline();
+}}
+function deleteLevel(idx) {{
+  _indexLevels.lines.splice(idx, 1);
+  saveIndexLevels(_indexLevels);
+  renderLevelEditor();
+  refreshKline();
+}}
+function refreshKline() {{
+  var card = document.getElementById('idx_0_k');
+  if (card) {{ card.innerHTML = ''; }}
+  if (window._CHART_BUILDINDEXGRID && window._CHART_BUILDINDEXGRID[0]) {{
+    renderKline('idx_0_k', window._CHART_BUILDINDEXGRID[0].kline, '上证指数');
+  }}
+}}
+
 // ========== 日K线 (带 +/- 控制) ==========
 function renderKline(chartId, klineAll, indexName) {{
   if (!klineAll.length) return;
   const DEFAULT_MONTHS = 2;  // 默认显示近2个月
   let windowStart = Math.max(0, klineAll.length - 22 * DEFAULT_MONTHS);
+
+  function buildMarkLines() {{
+    const ml = [];
+    if (indexName==='上证指数') {{
+      (_indexLevels.lines||[]).forEach(function(fl){{
+        ml.push({{yAxis:fl.y,label:{{show:false}},lineStyle:{{color:fl.color,type:'solid',width:0.8}}}});
+      }});
+    }}
+    return ml;
+  }}
 
   function render() {{
     const k = klineAll.slice(windowStart);
@@ -1079,20 +1149,6 @@ function renderKline(chartId, klineAll, indexName) {{
     const kdata = k.map(r=>[r.open,r.close,r.low,r.high]);
     const amounts = k.map(r=>(r.amount||0)/1e8);
     const barColors = k.map(r=>r.close>=r.open?'#ef4444':'#10b981');
-    // 上证指数固定关键位
-    const kMarkLine = [];
-    if (indexName==='上证指数') {{
-      const fixedLines = [
-        {{y:4200,color:'#10b981',label:'4200'}},
-        {{y:4050,color:'#fbbf24',label:'4050'}},
-        {{y:4000,color:'#ef4444',label:'4000'}},
-        {{y:3940,color:'#ef4444',label:'3940'}},
-        {{y:3794,color:'#ef4444',label:'3794'}},
-      ];
-      fixedLines.forEach(fl=>{{
-        kMarkLine.push({{yAxis:fl.y,label:{{show:false}},lineStyle:{{color:fl.color,type:'solid',width:0.8}}}});
-      }});
-    }}
     const chart = makeChart(chartId, {{
       grid:[
         {{top:4,left:44,right:4,height:'60%'}},
@@ -1109,7 +1165,7 @@ function renderKline(chartId, klineAll, indexName) {{
       series:[
         {{name:'K线',type:'candlestick',xAxisIndex:0,yAxisIndex:0,data:kdata,
           itemStyle:{{color:'#ef4444',color0:'#10b981',borderColor:'#ef4444',borderColor0:'#10b981'}},
-          markLine:{{silent:true,symbol:'none',data:kMarkLine}}}},
+          markLine:{{silent:true,symbol:'none',data:buildMarkLines()}}}},
         {{name:'成交额(亿)',type:'bar',xAxisIndex:1,yAxisIndex:1,data:amounts,
           itemStyle:{{color:function(p){{return barColors[p.dataIndex];}}}},
           markLine:{{silent:true,symbol:'none',
@@ -1222,7 +1278,8 @@ function buildIndexGrid() {{
     // Row header
     const hdr = document.createElement('div');
     hdr.className = 'grid-row-header';
-    hdr.textContent = item.name + ' ' + (item.code||'');
+    hdr.style.cssText = 'display:flex;justify-content:space-between;align-items:center';
+    hdr.innerHTML = '<span>' + item.name + ' ' + (item.code||'') + '</span>' + (idx===0 ? '<span id="idx_levels" style="font-size:11px;color:#94a3b8"></span>' : '');
     grid.appendChild(hdr);
 
     // Col 1: 分时
@@ -1670,14 +1727,14 @@ function buildMonitorTab() {{
       '<input type=\"text\" id=\"mon-name\" placeholder=\"股票名称\">'+
       '<select id=\"mon-type\" style=\"padding:6px 10px;border-radius:6px;font-size:12px;background:#1e2a3a;color:#e0e6ed;border:1px solid #334155;font-family:inherit\"><option>重点监控</option><option>触发严重异动（暂未监管）</option></select>'+
       '<select id=\"mon-rule\" style=\"padding:6px 10px;border-radius:6px;font-size:12px;background:#1e2a3a;color:#e0e6ed;border:1px solid #334155;font-family:inherit\"><option>30天200%</option><option>10天100%</option></select>'+
-      '<input type=\"date\" id=\"mon-start\" value=\"'+today+'\" onchange=\"onMonStartChange()\">'+
+      '<input type=\"date\" id=\"mon-start\" value=\"'+today+'\" oninput=\"onMonStartChange()\" onchange=\"onMonStartChange()\">'+
       '<input type=\"date\" id=\"mon-end\" value=\"'+addTradingDays(today,10)+'\">'+
       '<button onclick=\"addMonitor()\">添加</button>'+
       '</div>';
   }}
 }}
 
-function addTradingDays(d, n) {{ var dt=new Date(d); while(n>0){{ dt.setDate(dt.getDate()+1); if(dt.getDay()!==0&&dt.getDay()!==6)n--; }} return dt.toISOString().slice(0,10); }}
+function addTradingDays(d, n) {{ var dt=new Date(d); if(dt.getDay()!==0&&dt.getDay()!==6)n--; while(n>0){{ dt.setDate(dt.getDate()+1); if(dt.getDay()!==0&&dt.getDay()!==6)n--; }} return dt.toISOString().slice(0,10); }}
 
 function onMonStartChange() {{
   var s = document.getElementById('mon-start').value;
@@ -1760,6 +1817,7 @@ document.addEventListener('DOMContentLoaded', function() {{
   loadIndexState();
   loadAllData(function() {{
     buildIndexGrid();
+    loadIndexLevels();  // 上证水平线（在 grid 创建之后加载）
     buildRankTable();
     _tabRendered['index'] = true;
   }});
