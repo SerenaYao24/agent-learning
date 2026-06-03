@@ -1,5 +1,16 @@
 # 中长线逻辑识别 — 状态记录
 
+## 2026-06-03（涨停板复盘脚本化 + 模型审查闭环）
+
+- **已完成**：
+  - 创建 `scrape_zt_data.py`：用 agent-browser 抓取短线侠 涨停表现 →全部展开→提取 66 只封板股票（16 列：名称/代码/涨幅/板数/板形/异动原因/龙虎榜等），输出 `log/{日期}_limit_up_data.txt`
+  - 创建 `match_zt_data.py`：读取 log 数据 + `interest_stock.md`，按 SECTOR_KEYWORDS 匹配板块（窄优先），已有标的追加异动原因（去重），输出 `interest_stock_backup.md`（不覆盖原文件），内建 7 项验证
+  - 新增模型审查环节：未匹配标的逐条审查 → 有推荐直接移入板块 → 反哺关键词到 `SECTOR_KEYWORDS`
+  - 新增 3 个关键词：`太空算力`→商业航天、`特种气体`→半导体材料、`推理服务器`→AI 应用
+  - 个股 K 线 tooltip 新增涨跌幅（与指数日K样式一致）
+- **当前状态**：涨停板复盘全流程脚本化，输出写入 interest_stock_backup.md；limit-up-review skill 已同步更新
+- **文档更新**：context.md（新增步骤10）、process_insight.md（决策17）、SKILL.md、matching_rules.md
+
 ## 2026-05-30（晚间 — 看板重构 + 5日线角度Tab）
 
 - **已完成**：

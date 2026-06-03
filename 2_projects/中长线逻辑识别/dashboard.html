@@ -132,26 +132,26 @@ body{background:#0a0e17;color:#e0e6ed;font-family:'Fira Sans',-apple-system,sans
 <div class="header">
   <div>
     <h1>数据看板</h1>
-    <div class="date">数据日期: 2026-06-01</div>
+    <div class="date">数据日期: 2026-06-02</div>
   </div>
 </div>
 
 <div class="indicators">
-  <div class="indicator"><span class="label">上涨家数</span><span class="value up">3776</span></div>
-  <div class="indicator"><span class="label">下跌家数</span><span class="value down">1682</span></div>
-  <div class="indicator"><span class="label">涨停</span><span class="value up">118</span></div>
-  <div class="indicator"><span class="label">跌停</span><span class="value down">21</span></div>
+  <div class="indicator"><span class="label">上涨家数</span><span class="value up">1543</span></div>
+  <div class="indicator"><span class="label">下跌家数</span><span class="value down">3876</span></div>
+  <div class="indicator"><span class="label">涨停</span><span class="value up">63</span></div>
+  <div class="indicator"><span class="label">跌停</span><span class="value down">13</span></div>
   <div class="indicator">
     <span class="label">成交额</span>
-    <span class="value">2.91<span class="sub">万亿</span></span>
+    <span class="value">2.82<span class="sub">万亿</span></span>
   </div>
   <div class="indicator">
     <span class="label">进攻票</span>
-    <span class="value-row"><span class="value">23.4%</span><span class="sub" style="font-size:11px;margin-left:4px;color:#f0f4f8">—</span></span>
+    <span class="value-row"><span class="value">24.3%</span><span class="sub" style="font-size:11px;margin-left:4px;color:#f0f4f8">↑0.9%</span></span>
   </div>
   <div class="indicator">
     <span class="label">防守票</span>
-    <span class="value-row"><span class="value">76.6%</span><span class="sub" style="font-size:11px;margin-left:4px;color:#f0f4f8">—</span></span>
+    <span class="value-row"><span class="value">75.7%</span><span class="sub" style="font-size:11px;margin-left:4px;color:#f0f4f8">↓0.9%</span></span>
   </div>
   <div class="indicator" id="index-state-indicator">
     <span class="label">指数状态</span>
@@ -883,10 +883,10 @@ function buildSectorTable() {
 
 // ========== 个股数据卡片 ==========
 var _stockTabBuilt = false;
-var _stockThemeOrder = ["MLCC 电容", "消费", "金刚石", "电力", "地产", "AI PC", "AI 应用", "光伏", "电子布", "磷化铟", "量子计算", "PCB", "物理AI（机器视觉）", "电池/储能", "玻璃基板（CPU）", "生物医药", "AIDC-电源/发电机", "机器人", "半导体材料", "燃气/氢能", "光纤", "AIDC-变压器", "AI 消费电子", "光通信", "液冷", "小金属/贵金属", "稀土", "商业航天", "先进封装", "核电", "半导体设备", "碳化硅", "CPO", "国产芯片", "PCB 钻针", "电阻电容（其他）", "算力调度/算力工厂", "算力租赁", "PCB 铜箔/覆铜板", "油运", "存储", "CPU", "燃气轮机", "半导体洁净室", "两存股权", "功率半导体", "未匹配题材"];
-var _stockThemeAvg = {"电力": 1.95, "MLCC 电容": 2.79, "AI 应用": 0.91, "PCB": 0.09, "消费": 2.28, "金刚石": 2.2, "地产": 1.17, "PCB 铜箔/覆铜板": -2.0, "小金属/贵金属": -1.13, "电子布": 0.58, "机器人": -0.47, "PCB 钻针": -1.57, "电阻电容（其他）": -1.73, "AIDC-电源/发电机": -0.44, "AIDC-变压器": -0.93, "半导体材料": -0.68, "量子计算": 0.23, "生物医药": -0.43, "AI 消费电子": -1.02, "光伏": 0.8, "玻璃基板（CPU）": -0.4, "AI PC": 0.96, "光通信": -1.12, "电池/储能": -0.36, "商业航天": -1.2, "物理AI（机器视觉）": -0.15, "磷化铟": 0.54, "功率半导体": -4.22, "燃气/氢能": -0.78, "光纤": -0.91, "液冷": -1.12, "燃气轮机": -2.73, "核电": -1.3, "稀土": -1.19, "碳化硅": -1.47, "先进封装": -1.23, "CPO": -1.52, "算力租赁": -1.89, "国产芯片": -1.53, "算力调度/算力工厂": -1.81, "存储": -2.24, "油运": -2.22, "半导体设备": -1.32, "CPU": -2.6, "半导体洁净室": -2.86, "两存股权": -3.73};
-var _stockFilterTags = {"抗跌题材": ["电力", "消费", "地产", "生物医药", "MLCC 电容"], "加强题材": []};
-var _stockDefaultTheme = 'MLCC 电容';
+var _stockThemeOrder = ["薄膜铌酸锂", "环氧树脂（涨价）", "MLCC 电容", "老龙反抽", "高速铜链接", "电力", "AI PC", "消费", "光纤", "金刚石", "AI 应用", "磷化铟", "光伏", "PCB", "地产", "机器人", "光通信", "小金属/贵金属", "CPO", "玻璃基板（CPU）", "电子布", "半导体材料", "PCB 钻针", "AIDC-变压器", "物理AI（机器视觉）", "量子计算", "AIDC-电源/发电机", "国产芯片", "电池/储能", "半导体设备", "生物医药", "液冷", "核电", "燃气/氢能", "PCB 铜箔/覆铜板", "电阻电容（其他）", "商业航天", "碳化硅", "AI 消费电子", "稀土", "存储", "算力调度/算力工厂", "算力租赁", "半导体洁净室", "CPU", "油运", "先进封装", "燃气轮机", "两存股权", "功率半导体", "未匹配题材"];
+var _stockThemeAvg = {"MLCC 电容": 4.7, "薄膜铌酸锂": 9.71, "老龙反抽": 3.9, "电力": 2.17, "PCB": 1.0, "AI 应用": 1.23, "环氧树脂（涨价）": 7.55, "光纤": 1.58, "地产": 0.85, "光通信": 0.59, "金刚石": 1.34, "磷化铟": 1.17, "机器人": 0.61, "消费": 1.65, "AI PC": 1.9, "电阻电容（其他）": -0.89, "半导体材料": -0.06, "PCB 铜箔/覆铜板": -0.78, "小金属/贵金属": 0.51, "高速铜链接": 2.94, "电子布": 0.04, "光伏": 1.12, "AIDC-变压器": -0.11, "PCB 钻针": -0.09, "CPO": 0.14, "玻璃基板（CPU）": 0.09, "国产芯片": -0.31, "生物医药": -0.52, "AIDC-电源/发电机": -0.3, "液冷": -0.54, "量子计算": -0.2, "电池/储能": -0.42, "AI 消费电子": -1.03, "商业航天": -0.98, "物理AI（机器视觉）": -0.16, "功率半导体": -3.27, "核电": -0.72, "燃气/氢能": -0.74, "燃气轮机": -2.67, "碳化硅": -1.0, "存储": -1.25, "半导体设备": -0.47, "稀土": -1.18, "算力调度/算力工厂": -1.5, "算力租赁": -1.74, "CPU": -1.81, "半导体洁净室": -1.75, "油运": -2.2, "先进封装": -2.47, "两存股权": -2.93};
+var _stockFilterTags = {"抗跌题材": ["MLCC 电容", "机器人", "玻璃基板（CPU）", "光伏", "电力", "消费", "物理AI（机器视觉）", "电池/储能", "AI 应用", "量子计算", "燃气/氢能"], "加强题材": ["MLCC 电容", "机器人", "玻璃基板（CPU）"]};
+var _stockDefaultTheme = '薄膜铌酸锂';
 
 function buildStockTab() {
   if (_stockTabBuilt) return;
@@ -1023,7 +1023,7 @@ function makeStockChart(domId, info) {
     tooltip:{
       trigger:'axis',axisPointer:{type:'shadow',shadowStyle:{color:'rgba(200,200,200,0.08)'}},
       backgroundColor:'#1e293b',borderColor:'#334155',
-      textStyle:{fontSize:11,color:'#e0e6ed'},
+      textStyle:{fontSize:11,color:'#e0e6ed'},transitionDuration:0,
       formatter:function(params){
         var cs=null,date='';
         for(var j=0;j<params.length;j++){
@@ -1032,7 +1032,10 @@ function makeStockChart(domId, info) {
         }
         var k=cs?(cs.value||cs.data):null;
         if(!k||k.length<5||typeof k[1]!=='number')return date;
-        return date+'<br/>开 '+k[1].toFixed(2)+'<br/>收 '+k[2].toFixed(2)+'<br/>高 '+k[4].toFixed(2)+'<br/>低 '+k[3].toFixed(2);
+        var pc=cs.dataIndex>0&&info.cl[cs.dataIndex-1]!=null?info.cl[cs.dataIndex-1]:k[1];
+        var chg=pc?((k[2]-pc)/pc*100).toFixed(2):'0.00';
+        var sign=chg>=0?'+':'',c=chg>0?'#ef4444':chg<0?'#10b981':'#e0e6ed';
+        return date+'<br/>开 '+k[1].toFixed(2)+'<br/>收 '+k[2].toFixed(2)+'<br/>高 '+k[4].toFixed(2)+'<br/>低 '+k[3].toFixed(2)+'<br/><span style="color:'+c+'">涨跌幅：'+sign+chg+'%</span>';
       }
     }
   });

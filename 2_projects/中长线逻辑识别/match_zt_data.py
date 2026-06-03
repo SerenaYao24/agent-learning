@@ -1,0 +1,277 @@
+#!/usr/bin/env python3
+"""涨停数据匹配自选股：读 log/{date}_limit_up_data.txt，匹配后写入 interest_stock_backup.md"""
+import re, os, sys
+from collections import OrderedDict
+from datetime import date
+
+PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
+LOG_DIR = os.path.join(PROJECT_DIR, "log")
+INTEREST_PATH = os.path.join(PROJECT_DIR, "interest_stock.md")
+
+# ============== Sector Keyword Mapping (narrow before broad) ==============
+SECTOR_KEYWORDS = OrderedDict([
+    ('CPO', ['cpo', '光引擎']),
+    ('MLCC 电容', ['mlcc', '离型膜']),
+    ('电子布', ['电子布', '玻纤布', '玻璃纤维布']),
+    ('光通信', ['光模块', '光通信', '薄膜铌酸锂', '滤光片']),
+    ('磷化铟', ['磷化铟']),
+    ('光纤', ['光纤', '四氯化锗']),
+    ('PCB 钻针', ['钻针']),
+    ('PCB 铜箔/覆铜板', ['覆铜板', '铜箔', 'ccl']),
+    ('PCB', ['pcb', 'hdi', '印制电路板', 'cbf', '玻纤', '玻璃纤维', 'msap', '载板', '陶瓷方案']),
+    ('液冷', ['液冷', '冷却液', '氟化冷却']),
+    ('先进封装', ['先进封装']),
+    ('玻璃基板（CPU）', ['玻璃基板', '硼硅']),
+    ('电阻电容（其他）', ['电容', '被动元件', '电极箔', '超级电容', 'mlpc', '薄膜电容器']),
+    ('半导体设备', ['半导体设备', '晶圆', '刻蚀', '封装检测', '半导体测试']),
+    ('半导体材料', ['光刻胶', '电子气体', '特种气体', '电子化学品', '硅烷']),
+    ('碳化硅', ['碳化硅', 'sic']),
+    ('机器人', ['机器人', '人形机器人', '优必选', '电子皮肤']),
+    ('存储', ['存储', '长鑫', 'hbm', 'dram', 'nand']),
+    ('算力租赁', ['算力租赁']),
+    ('算力调度/算力工厂', ['算力调度', '算力服务器', 'gpu']),
+    ('电力', ['电力', '储能', '电网', '电气', '热电', '特高压']),
+    ('小金属/贵金属', ['钨', '有色', '黄金', '铜', '锗', '钽', '铟', '铌', '铪', '锶', '金属']),
+    ('AI 应用', ['ai应用', 'ai服务器', '推理服务器', 'ai眼镜', 'ai算力', 'ai数据中心', 'aipc']),
+    ('商业航天', ['航天', '商业航天', '卫星', '太空算力']),
+    ('国产芯片', ['芯片', '射频芯片', '存储芯片', '光芯片']),
+    ('地产', ['地产', '房地产']),
+    ('燃气/氢能', ['氢能', '氢燃料', '氢氟酸']),
+    ('核电', ['核电']),
+    ('AIDC-电源/发电机', ['发电机', '备用电源']),
+    ('AIDC-变压器', ['变压器', 'sst']),
+    ('电池/储能', ['电池', '固态电池', '锂电池', '钠电池']),
+    ('稀土', ['稀土']),
+    ('油运', ['油运']),
+    ('CPU', ['cpu']),
+    ('半导体洁净室', ['洁净室']),
+    ('物理AI（机器视觉）', ['物理ai']),
+    ('光伏', ['光伏', '太阳能']),
+])
+
+def match_sector(reason):
+    reason_lower = reason.lower()
+    for sector, keywords in SECTOR_KEYWORDS.items():
+        for kw in keywords:
+            if kw.lower() in reason_lower:
+                return sector
+    return None
+
+def parse_interest_stock(filepath):
+    """Parse interest_stock.md -> {section: [(line, name, desc)]}, set of names"""
+    with open(filepath, encoding='utf-8') as f:
+        text = f.read()
+    sections = OrderedDict()
+    all_names = set()
+    current = None
+    for line in text.split('\n'):
+        s = line.strip()
+        if s.startswith('# '):
+            current = s[2:].strip()
+            sections.setdefault(current, [])
+            continue
+        if current is not None and s:
+            name = s.split('（')[0].split('(')[0].strip()
+            desc = ''
+            if '（' in s:
+                desc = s[s.index('（'):]
+            all_names.add(name)
+            sections[current].append((s, name, desc))
+    return sections, all_names
+
+def load_zt_data(filepath):
+    """Load parsed ZT data from log file."""
+    stocks = []
+    with open(filepath, encoding='utf-8') as f:
+        for line in f:
+            if line.startswith('#') or not line.strip():
+                continue
+            parts = line.strip().split('\t')
+            if len(parts) >= 14 and parts[0] != '股票名称':
+                stocks.append({
+                    'name': parts[0], 'code': parts[1], 'change': parts[2],
+                    'ban_shu': parts[4], 'ban_xing': parts[6],
+                    'first_seal': parts[7], 'final_seal': parts[8],
+                    'amount': parts[9], 'flow': parts[10],
+                    'turnover': parts[12], 'reason': parts[13],
+                    'concept_group': parts[15] if len(parts) > 15 else '',
+                })
+    return stocks
+
+def main():
+    today = date.today().strftime("%Y-%m-%d")
+    data_file = os.path.join(LOG_DIR, f"{today}_limit_up_data.txt")
+    
+    if not os.path.exists(data_file):
+        print(f"ERROR: 数据文件不存在: {data_file}")
+        print("请先运行 scrape_zt_data.py")
+        sys.exit(1)
+    
+    print(f"1. 加载数据: {data_file}")
+    zt_stocks = load_zt_data(data_file)
+    print(f"   涨停 {len(zt_stocks)} 只")
+    
+    print(f"2. 加载自选股: {INTEREST_PATH}")
+    wl_sections, wl_names = parse_interest_stock(INTEREST_PATH)
+    print(f"   {len(wl_names)} 只标的, {len(wl_sections)} 个板块")
+    
+    # Classify
+    in_wl = [s for s in zt_stocks if s['name'] in wl_names]
+    new_stocks = [s for s in zt_stocks if s['name'] not in wl_names]
+    print(f"3. 已在自选: {len(in_wl)}, 新标的: {len(new_stocks)}")
+    
+    # Build a map of existing stock -> section + description for append
+    stock_section_map = {}  # name -> (section_name, desc)
+    for sec_name, entries in wl_sections.items():
+        if sec_name == '未匹配题材':
+            continue
+        for entry_line, name, desc in entries:
+            if name not in stock_section_map:  # first occurrence wins
+                stock_section_map[name] = (sec_name, desc, entry_line)
+    
+    # Match new stocks
+    matched = OrderedDict()
+    unmatched = []
+    for s in new_stocks:
+        sector = match_sector(s['reason'])
+        if sector:
+            matched.setdefault(sector, []).append(s)
+        else:
+            unmatched.append(s)
+    
+    # ===== Build interest_stock_backup.md =====
+    output = []
+    written_names = set()
+    
+    # Build updated descriptions map for existing stocks
+    # name -> new desc (with appended 异动原因)
+    updated_descs = {}
+    for s in in_wl:
+        old_desc = ''
+        if s['name'] in stock_section_map:
+            old_desc = stock_section_map[s['name']][1]
+        
+        new_reason = s['reason']
+        
+        if old_desc:
+            # Check if new reason's keywords already covered by existing desc (avoid near-duplicate appends)
+            new_kws = set(k.strip() for k in new_reason.replace('+', ' ').replace('（', ' ').replace('）', ' ').split() if len(k.strip()) > 1)
+            existing_text = old_desc.replace('（', ' ').replace('）', ' ')
+            covered = all(kw in existing_text for kw in new_kws) if new_kws else False
+            
+            if not covered and new_reason not in old_desc:
+                if old_desc.endswith('）'):
+                    new_desc = f"{old_desc[:-1]}；{new_reason}）"
+                else:
+                    new_desc = f"（{new_reason}）"
+            else:
+                new_desc = old_desc
+        else:
+            new_desc = f"（{new_reason}）"
+        updated_descs[s['name']] = new_desc
+    
+    # Write regular sections
+    for sec_name, entries in wl_sections.items():
+        if sec_name == '未匹配题材':
+            continue
+        output.append(f'# {sec_name}')
+        for entry_line, name, desc in entries:
+            if name not in written_names:
+                if name in updated_descs:
+                    # Replace with updated description
+                    output.append(f"{name}{updated_descs[name]}")
+                else:
+                    output.append(entry_line)
+                written_names.add(name)
+        
+        # Add new matched stocks to this section
+        if sec_name in matched:
+            for s in matched[sec_name]:
+                if s['name'] not in written_names:
+                    output.append(f"{s['name']}（{s['reason']}）")
+                    written_names.add(s['name'])
+        
+        output.append('')
+    
+    # Add new sections not in WL
+    for sec_name in matched:
+        if sec_name not in wl_sections:
+            output.append(f'# {sec_name}')
+            for s in matched[sec_name]:
+                if s['name'] not in written_names:
+                    output.append(f"{s['name']}（{s['reason']}）")
+                    written_names.add(s['name'])
+            output.append('')
+    
+    # Unmatched section
+    orig_unmatched = wl_sections.get('未匹配题材', [])
+    output.append('# 未匹配题材')
+    for entry_line, name, desc in orig_unmatched:
+        if entry_line.strip() and name not in written_names:
+            output.append(entry_line.strip())
+            written_names.add(name)
+    for s in unmatched:
+        output.append(f"{s['name']}（{s['reason']}）")
+    output.append('')
+    
+    # Write output
+    backup_path = os.path.join(PROJECT_DIR, "interest_stock_backup.md")
+    with open(backup_path, 'w', encoding='utf-8') as f:
+        f.write('\n'.join(output))
+    
+    # ===== Verification =====
+    print(f"\n4. 写入: {backup_path}")
+    text = '\n'.join(output)
+    
+    errors = []
+    # Format check
+    sections = re.split(r'\n# ', text)
+    for sec in sections:
+        body = [l for l in sec.strip().split('\n') if not l.startswith('#')]
+        blanks = [i for i,l in enumerate(body) if l.strip()=='' and i<len(body)-1 and body[i+1].strip()!='']
+        if blanks:
+            errors.append(f'Format: blank in "{sec.split(chr(10))[0][:30]}"')
+    
+    # Duplicate names
+    all_lines = [l.strip() for l in text.split('\n') if l.strip() and not l.startswith('#')]
+    name_counts = {}
+    for l in all_lines:
+        n = l.split('（')[0].split('(')[0].strip()
+        name_counts[n] = name_counts.get(n, 0) + 1
+    for n, c in name_counts.items():
+        if c > 1:
+            errors.append(f'DUP: {n} x{c}')
+    
+    # Duplicate sections
+    headers = re.findall(r'^# (.+)$', text, re.MULTILINE)
+    from collections import Counter
+    for h, c in Counter(headers).items():
+        if c > 1:
+            errors.append(f'DUP SECT: {h}')
+    
+    if errors:
+        print(f"\n❌ {len(errors)} 问题:")
+        for e in errors:
+            print(f"  - {e}")
+    else:
+        print("✅ 验证通过")
+    
+    # Summary
+    total_new = sum(len(v) for v in matched.values())
+    print(f"\n=== 摘要 ===")
+    print(f"已在自选(异动原因已追加): {len(in_wl)}")
+    print(f"新增匹配: {total_new}")
+    print(f"未匹配: {len(unmatched)}")
+    for sec, stks in matched.items():
+        print(f"  [{sec}] +{len(stks)}: {', '.join(s['name'] for s in stks)}")
+    if unmatched:
+        print(f"  [未匹配] {len(unmatched)}: {', '.join(s['name'] for s in unmatched)}")
+        print(f"\n=== 🔍 模型审查（未匹配标的） ===")
+        print("请模型逐条审查异动原因，如有推荐板块，在 interest_stock_backup.md 中追加【建议：XX板块】")
+        print()
+        for s in unmatched:
+            print(f"  - {s['name']} | 异动原因: {s['reason']}")
+
+
+if __name__ == "__main__":
+    main()

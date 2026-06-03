@@ -1636,7 +1636,7 @@ function makeStockChart(domId, info) {{
     tooltip:{{
       trigger:'axis',axisPointer:{{type:'shadow',shadowStyle:{{color:'rgba(200,200,200,0.08)'}}}},
       backgroundColor:'#1e293b',borderColor:'#334155',
-      textStyle:{{fontSize:11,color:'#e0e6ed'}},
+      textStyle:{{fontSize:11,color:'#e0e6ed'}},transitionDuration:0,
       formatter:function(params){{
         var cs=null,date='';
         for(var j=0;j<params.length;j++){{
@@ -1645,7 +1645,10 @@ function makeStockChart(domId, info) {{
         }}
         var k=cs?(cs.value||cs.data):null;
         if(!k||k.length<5||typeof k[1]!=='number')return date;
-        return date+'<br/>开 '+k[1].toFixed(2)+'<br/>收 '+k[2].toFixed(2)+'<br/>高 '+k[4].toFixed(2)+'<br/>低 '+k[3].toFixed(2);
+        var pc=cs.dataIndex>0&&info.cl[cs.dataIndex-1]!=null?info.cl[cs.dataIndex-1]:k[1];
+        var chg=pc?((k[2]-pc)/pc*100).toFixed(2):'0.00';
+        var sign=chg>=0?'+':'',c=chg>0?'#ef4444':chg<0?'#10b981':'#e0e6ed';
+        return date+'<br/>开 '+k[1].toFixed(2)+'<br/>收 '+k[2].toFixed(2)+'<br/>高 '+k[4].toFixed(2)+'<br/>低 '+k[3].toFixed(2)+'<br/><span style=\"color:'+c+'\">涨跌幅：'+sign+chg+'%</span>';
       }}
     }}
   }});

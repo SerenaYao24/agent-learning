@@ -28,7 +28,8 @@
 - **MA5 排行**：`--query`（默认 "五日均线角度从大到小排名前 200，非 st"）、`--top`、`--page-size`
 - **趋势分析**：`-i <interest_stock.md>`（必需）、`--refresh` / `--multi` / `--force-gen`（可选）
 - **K 线页面**：`-i <标的文件>` 或 `--sector <题材名>`、`--days`、`-o <输出.html>`
-- **输入缺失降级**：MA5 排行全部有默认值；趋势分析缺 `-i` 报错退出
+- **涨停板复盘**：`scrape_zt_data.py`（无参数）、`match_zt_data.py`（无参数，读取 `log/{日期}_limit_up_data.txt`）
+- **输入缺失降级**：MA5 排行全部有默认值；趋势分析缺 `-i` 报错退出；涨停复盘缺 log 文件提示先运行 scrape
 
 ## 约束条件（Constraints）
 
@@ -150,6 +151,20 @@ python3 dashboard_server.py          # 启动统一服务（端口 8977）
 - 无数据标的放末尾并标注 `# ⚠️ 无近10日数据`
 - 代码映射支持硬编码修正（`HARDCODED_MAP`），覆盖名称映射错误
 
+### 10. 涨停板复盘（自选股匹配）
+
+```bash
+python3 scrape_zt_data.py              # 抓取短线侠涨停表现 → log/{日期}_limit_up_data.txt
+python3 match_zt_data.py               # 匹配自选股 → interest_stock_backup.md（不覆盖原文件）
+```
+
+两段式流程：
+1. **抓取**：`scrape_zt_data.py` 用 agent-browser 打开短线侠 → 点击涨停表现 → 全部展开 → 提取 66 只封板股票（过滤炸板/破板），含详细异动原因、板数、板形、换手率等，输出 tab 分隔文件
+2. **匹配**：`match_zt_data.py` 读取 log 数据 + `interest_stock.md`，按 `SECTOR_KEYWORDS` 字典匹配板块（窄板块优先，首个关键词命中即归入）。已有标的追加异动原因（去重），新标的按关键词归入板块，未匹配入 `# 未匹配题材`
+3. **模型审查**：脚本末尾列出未匹配标的，模型逐一审查 → 有推荐则移到对应板块并反哺关键词到 `SECTOR_KEYWORDS`
+
+输出：`log/{日期}_limit_up_data.txt` + `interest_stock_backup.md`（原 `interest_stock.md` 不修改）
+
 ## 失败模式（Failure modes）
 
 | 模式 | 触发条件 | 类型 | 表现 | 处置 |
@@ -160,6 +175,8 @@ python3 dashboard_server.py          # 启动统一服务（端口 8977）
 | 缓存无 OHLCV | 旧缓存缺少 K 线字段 | blocking/medium | 走势图生成失败 | `--refresh` 重新拉取 |
 | API 超时 | akshare 网络波动 | degradation/low | 部分标的数据缺失 | 缓存兜底，not_found 记录 |
 | 看板 API 不可用 | dashboard_server.py 未启动 | degradation/low | 前端 fetch 失败 | 静默兜底（catch 空回调），内存数据可操作但不持久化 |
+| 短线侠页面不可用 | 改版/维护/iframe 结构变化 | blocking/high | scrape_zt_data.py 提取不到数据 | 检查 iframe 索引是否变化，手动调整 `querySelectorAll("iframe")[7]` 的索引 |
+| 关键词遗漏 | 异动原因含新概念词未在 SECTOR_KEYWORDS 中 | degradation/low | 标的误入未匹配题材 | 模型审查阶段发现 → 补入 match_zt_data.py 的 SECTOR_KEYWORDS 字典 |
 
 ## 复用方式（Reuse）
 
