@@ -132,26 +132,26 @@ body{background:#0a0e17;color:#e0e6ed;font-family:'Fira Sans',-apple-system,sans
 <div class="header">
   <div>
     <h1>数据看板</h1>
-    <div class="date">数据日期: 2026-06-03</div>
+    <div class="date">数据日期: 2026-06-04</div>
   </div>
 </div>
 
 <div class="indicators">
-  <div class="indicator"><span class="label">上涨家数</span><span class="value up">1713</span></div>
-  <div class="indicator"><span class="label">下跌家数</span><span class="value down">3727</span></div>
-  <div class="indicator"><span class="label">涨停</span><span class="value up">66</span></div>
-  <div class="indicator"><span class="label">跌停</span><span class="value down">10</span></div>
+  <div class="indicator"><span class="label">上涨家数</span><span class="value up">1344</span></div>
+  <div class="indicator"><span class="label">下跌家数</span><span class="value down">4121</span></div>
+  <div class="indicator"><span class="label">涨停</span><span class="value up">78</span></div>
+  <div class="indicator"><span class="label">跌停</span><span class="value down">7</span></div>
   <div class="indicator">
     <span class="label">成交额</span>
-    <span class="value">3.16<span class="sub">万亿</span></span>
+    <span class="value">2.79<span class="sub">万亿</span></span>
   </div>
   <div class="indicator">
     <span class="label">进攻票</span>
-    <span class="value-row"><span class="value">28.7%</span><span class="sub" style="font-size:11px;margin-left:4px;color:#f0f4f8">↑4.4%</span></span>
+    <span class="value-row"><span class="value">24.9%</span><span class="sub" style="font-size:11px;margin-left:4px;color:#f0f4f8">↓3.8%</span></span>
   </div>
   <div class="indicator">
     <span class="label">防守票</span>
-    <span class="value-row"><span class="value">71.3%</span><span class="sub" style="font-size:11px;margin-left:4px;color:#f0f4f8">↓4.4%</span></span>
+    <span class="value-row"><span class="value">75.1%</span><span class="sub" style="font-size:11px;margin-left:4px;color:#f0f4f8">↑3.8%</span></span>
   </div>
   <div class="indicator" id="index-state-indicator">
     <span class="label">指数状态</span>
@@ -883,10 +883,10 @@ function buildSectorTable() {
 
 // ========== 个股数据卡片 ==========
 var _stockTabBuilt = false;
-var _stockThemeOrder = ["煤炭", "老龙反抽", "薄膜铌酸锂", "环氧树脂（涨价）", "MLCC 电容", "高速铜链接", "金刚石", "磷化铟", "光纤", "电力", "机器人", "PCB 钻针", "光通信", "AI PC", "PCB", "地产", "CPO", "消费", "AI 应用", "半导体设备", "半导体材料", "小金属/贵金属", "稀土", "国产芯片", "玻璃基板（CPU）", "光伏", "量子计算", "液冷", "生物医药", "电子布", "AIDC-电源/发电机", "存储", "商业航天", "核电", "电池/储能", "PCB 铜箔/覆铜板", "燃气/氢能", "AI 消费电子", "电阻电容（其他）", "物理AI（机器视觉）", "CPU", "两存股权", "AIDC-变压器", "算力租赁", "算力调度/算力工厂", "先进封装", "半导体洁净室", "油运", "碳化硅", "功率半导体", "燃气轮机", "未匹配题材"];
-var _stockThemeAvg = {"煤炭": 7.15, "老龙反抽": 6.33, "MLCC 电容": 4.35, "金刚石": 3.77, "薄膜铌酸锂": 5.79, "光纤": 2.57, "环氧树脂（涨价）": 4.81, "机器人": 1.97, "磷化铟": 2.58, "电力": 2.21, "PCB": 1.27, "PCB 钻针": 1.58, "AI 应用": 0.93, "AI PC": 1.38, "高速铜链接": 4.18, "光通信": 1.5, "半导体材料": 0.8, "PCB 铜箔/覆铜板": -0.37, "地产": 1.2, "CPO": 1.14, "国产芯片": 0.56, "小金属/贵金属": 0.68, "消费": 1.11, "玻璃基板（CPU）": 0.45, "量子计算": 0.29, "AIDC-电源/发电机": -0.0, "稀土": 0.56, "电阻电容（其他）": -0.56, "商业航天": -0.13, "半导体设备": 0.9, "光伏": 0.43, "生物医药": 0.15, "液冷": 0.2, "电子布": 0.09, "存储": -0.03, "核电": -0.22, "AI 消费电子": -0.52, "电池/储能": -0.32, "燃气/氢能": -0.38, "功率半导体": -1.58, "算力租赁": -1.02, "CPU": -0.82, "物理AI（机器视觉）": -0.65, "AIDC-变压器": -0.99, "两存股权": -0.97, "算力调度/算力工厂": -1.04, "先进封装": -1.08, "燃气轮机": -2.06, "半导体洁净室": -1.51, "油运": -1.55, "碳化硅": -1.56};
-var _stockFilterTags = {"抗跌题材": ["金刚石", "光通信", "稀土", "先进封装", "磷化铟", "光纤", "CPO", "机器人", "存储", "电力", "玻璃基板（CPU）", "半导体材料", "国产芯片", "半导体设备", "AI 消费电子", "MLCC 电容", "碳化硅", "PCB"], "加强题材": ["金刚石", "稀土", "先进封装", "磷化铟", "存储"]};
-var _stockDefaultTheme = '煤炭';
+var _stockThemeOrder = ["脑机接口", "煤炭", "老龙反抽", "高速铜链接", "MLCC 电容", "环氧树脂（涨价）", "机器人", "光纤", "薄膜铌酸锂", "电力", "PCB 钻针", "玻璃基板（CPU）", "PCB", "AI 应用", "存储", "磷化铟", "光通信", "消费", "金刚石", "地产", "电阻电容（其他）", "半导体材料", "AIDC-电源/发电机", "AI PC", "CPO", "半导体设备", "稀土", "光伏", "两存股权", "液冷", "PCB 铜箔/覆铜板", "小金属/贵金属", "AI 消费电子", "生物医药", "燃气轮机", "国产芯片", "量子计算", "商业航天", "电池/储能", "燃气/氢能", "核电", "功率半导体", "算力调度/算力工厂", "电子布", "CPU", "先进封装", "半导体洁净室", "AIDC-变压器", "碳化硅", "物理AI（机器视觉）", "算力租赁", "油运", "未匹配题材"];
+var _stockThemeAvg = {"老龙反抽": 6.72, "煤炭": 7.04, "MLCC 电容": 3.35, "机器人": 2.45, "光纤": 2.41, "高速铜链接": 3.94, "电力": 1.96, "电阻电容（其他）": 1.07, "PCB": 1.56, "PCB 钻针": 1.84, "环氧树脂（涨价）": 3.27, "AI 应用": 1.31, "玻璃基板（CPU）": 1.75, "AIDC-电源/发电机": 0.84, "地产": 1.09, "脑机接口": 10.02, "半导体材料": 0.92, "光通信": 1.26, "存储": 1.29, "金刚石": 1.16, "消费": 1.26, "半导体设备": 0.44, "AI PC": 0.57, "CPO": 0.54, "光伏": 0.29, "国产芯片": -0.25, "商业航天": -0.46, "稀土": 0.31, "两存股权": 0.06, "小金属/贵金属": -0.01, "PCB 铜箔/覆铜板": -0.01, "AI 消费电子": -0.04, "生物医药": -0.05, "液冷": 0.05, "磷化铟": 1.27, "量子计算": -0.33, "电池/储能": -0.5, "薄膜铌酸锂": 2.07, "燃气/氢能": -0.55, "燃气轮机": -0.23, "核电": -0.57, "功率半导体": -0.86, "算力调度/算力工厂": -1.09, "CPU": -1.13, "先进封装": -1.15, "电子布": -1.13, "半导体洁净室": -1.19, "碳化硅": -1.45, "算力租赁": -1.73, "AIDC-变压器": -1.41, "物理AI（机器视觉）": -1.66, "油运": -1.73};
+var _stockFilterTags = {"抗跌题材": ["AIDC-电源/发电机", "玻璃基板（CPU）", "存储", "半导体材料", "半导体设备", "MLCC 电容", "光通信", "碳化硅", "PCB 钻针", "AI 消费电子", "液冷", "功率半导体", "机器人", "稀土", "先进封装", "光纤", "PCB 铜箔/覆铜板", "CPO", "CPU", "国产芯片", "磷化铟", "电力", "商业航天", "金刚石", "两存股权"], "加强题材": ["AIDC-电源/发电机", "玻璃基板（CPU）", "存储", "半导体材料", "半导体设备", "MLCC 电容"]};
+var _stockDefaultTheme = '脑机接口';
 
 function buildStockTab() {
   if (_stockTabBuilt) return;
