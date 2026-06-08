@@ -20,6 +20,8 @@ import argparse
 from pathlib import Path
 from datetime import datetime, date, timedelta
 
+from _topic_utils import parse_topic_header
+
 BASE_DIR = Path(__file__).resolve().parent
 CACHE_DIR = BASE_DIR / ".stock_cache"
 STOCK_DATA_PATH = CACHE_DIR / "stock_data.json"
@@ -203,7 +205,7 @@ def load_stocks_by_sector(filepath: Path) -> list:
         if line.startswith("#"):
             if current_stocks:
                 groups.append((current_sector, current_stocks))
-            current_sector = line.lstrip("#").strip()
+            current_sector = parse_topic_header(line)[0]  # 只用 topic_name 做分类
             current_stocks = []
         elif current_sector:
             current_stocks.append(clean_name(line))
@@ -214,10 +216,12 @@ def load_stocks_by_sector(filepath: Path) -> list:
 
 
 def get_sector_stocks(sector_name: str) -> list:
-    """从 interest_stock.md 获取某题材的所有标的名称"""
+    """从 interest_stock.md 获取某题材的所有标的名称（自动去除备注匹配）"""
     groups = load_stocks_by_sector(INTEREST_PATH)
+    # 标准化输入：去掉用户可能传入的括号备注
+    normalized_name, _ = parse_topic_header(f"# {sector_name}")
     for sec, names in groups:
-        if sec == sector_name:
+        if sec == normalized_name:
             return names
     return []
 

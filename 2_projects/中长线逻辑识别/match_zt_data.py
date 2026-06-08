@@ -4,6 +4,8 @@ import re, os, sys
 from collections import OrderedDict
 from datetime import date
 
+from _topic_utils import parse_topic_header, format_topic_header
+
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 LOG_DIR = os.path.join(PROJECT_DIR, "log")
 INTEREST_PATH = os.path.join(PROJECT_DIR, "interest_stock.md")
@@ -15,26 +17,27 @@ SECTOR_KEYWORDS = OrderedDict([
     ('电子布', ['电子布', '玻纤布', '玻璃纤维布']),
     ('光通信', ['光模块', '光通信', '薄膜铌酸锂', '滤光片']),
     ('磷化铟', ['磷化铟']),
-    ('光纤', ['光纤', '四氯化锗']),
+    ('光纤', ['光纤', '四氯化锗', '长飞']),
     ('PCB 钻针', ['钻针']),
     ('PCB 铜箔/覆铜板', ['覆铜板', '铜箔', 'ccl']),
     ('PCB', ['pcb', 'hdi', '印制电路板', 'cbf', '玻纤', '玻璃纤维', 'msap', '载板', '陶瓷方案']),
     ('液冷', ['液冷', '冷却液', '氟化冷却']),
     ('先进封装', ['先进封装']),
-    ('玻璃基板（CPU）', ['玻璃基板', '硼硅']),
-    ('电阻电容（其他）', ['电容', '被动元件', '电极箔', '超级电容', 'mlpc', '薄膜电容器']),
+    ('玻璃基板', ['玻璃基板', '硼硅']),
+    ('电阻电容', ['电容', '被动元件', '电极箔', '超级电容', 'mlpc', '薄膜电容器']),
     ('半导体设备', ['半导体设备', '晶圆', '刻蚀', '封装检测', '半导体测试']),
     ('半导体材料', ['光刻胶', '电子气体', '特种气体', '电子化学品', '硅烷']),
     ('碳化硅', ['碳化硅', 'sic']),
-    ('机器人', ['机器人', '人形机器人', '优必选', '电子皮肤']),
+    ('机器人', ['机器人', '人形机器人', '优必选', '电子皮肤', '宇树']),
     ('存储', ['存储', '长鑫', 'hbm', 'dram', 'nand']),
     ('算力租赁', ['算力租赁']),
     ('算力调度/算力工厂', ['算力调度', '算力服务器', 'gpu']),
     ('电力', ['电力', '储能', '电网', '电气', '热电', '特高压', '发电']),
-    ('小金属/贵金属', ['钨', '有色', '黄金', '铜', '锗', '钽', '铟', '铌', '铪', '锶', '金属']),
-    ('AI 应用', ['ai应用', 'ai服务器', '推理服务器', 'ai眼镜', 'ai算力', 'ai数据中心', 'aipc', '端侧ai', 'vr']),
+    ('小金属/贵金属', ['钨', '锡', '有色', '黄金', '铜', '锗', '钽', '铟', '铌', '铪', '锶', '金属']),
+    ('AI 消费电子', ['ar眼镜', 'ar', 'miniled', 'ai眼镜']),
+    ('AI 应用', ['ai应用', 'ai服务器', '推理服务器', 'ai智能体', 'ai算力', 'ai数据中心', 'aipc', '端侧ai', 'vr']),
     ('商业航天', ['航天', '商业航天', '卫星', '太空算力']),
-    ('国产芯片', ['芯片', '射频芯片', '存储芯片', '光芯片']),
+    ('国产芯片', ['芯片', '射频', '射频芯片', '存储芯片', '光芯片']),
     ('地产', ['地产', '房地产', '地板']),
     ('燃气/氢能', ['氢能', '氢燃料', '氢氟酸', '制氢']),
     ('核电', ['核电']),
@@ -45,8 +48,8 @@ SECTOR_KEYWORDS = OrderedDict([
     ('油运', ['油运']),
     ('CPU', ['cpu']),
     ('半导体洁净室', ['洁净室']),
-    ('物理AI（机器视觉）', ['物理ai']),
-    ('光伏', ['光伏', '太阳能']),
+    ('物理AI', ['物理ai']),
+    ('光伏', ['光伏', '太阳能', '钙钛矿', 'tco']),
 ])
 
 def match_sector(reason):
@@ -58,17 +61,21 @@ def match_sector(reason):
     return None
 
 def parse_interest_stock(filepath):
-    """Parse interest_stock.md -> {section: [(line, name, desc)]}, set of names"""
+    """Parse interest_stock.md -> {section: [(line, name, desc)]}, set of names, {section: note}"""
     with open(filepath, encoding='utf-8') as f:
         text = f.read()
     sections = OrderedDict()
+    section_notes = {}  # topic_name → topic_note
     all_names = set()
     current = None
     for line in text.split('\n'):
         s = line.strip()
         if s.startswith('# '):
-            current = s[2:].strip()
+            topic_name, topic_note = parse_topic_header(s)
+            current = topic_name
             sections.setdefault(current, [])
+            if topic_note:
+                section_notes[current] = topic_note
             continue
         if current is not None and s:
             name = s.split('（')[0].split('(')[0].strip()
@@ -77,7 +84,7 @@ def parse_interest_stock(filepath):
                 desc = s[s.index('（'):]
             all_names.add(name)
             sections[current].append((s, name, desc))
-    return sections, all_names
+    return sections, all_names, section_notes
 
 def load_zt_data(filepath):
     """Load parsed ZT data from log file."""
@@ -112,7 +119,7 @@ def main():
     print(f"   涨停 {len(zt_stocks)} 只")
     
     print(f"2. 加载自选股: {INTEREST_PATH}")
-    wl_sections, wl_names = parse_interest_stock(INTEREST_PATH)
+    wl_sections, wl_names, section_notes = parse_interest_stock(INTEREST_PATH)
     print(f"   {len(wl_names)} 只标的, {len(wl_sections)} 个板块")
     
     # Classify
@@ -174,7 +181,7 @@ def main():
     for sec_name, entries in wl_sections.items():
         if sec_name == '未匹配题材':
             continue
-        output.append(f'# {sec_name}')
+        output.append(format_topic_header(sec_name, section_notes.get(sec_name, '')))
         for entry_line, name, desc in entries:
             if name not in written_names:
                 if name in updated_descs:
@@ -196,7 +203,8 @@ def main():
     # Add new sections not in WL
     for sec_name in matched:
         if sec_name not in wl_sections:
-            output.append(f'# {sec_name}')
+            # 新题材来自 SECTOR_KEYWORDS，没有备注
+            output.append(format_topic_header(sec_name))
             for s in matched[sec_name]:
                 if s['name'] not in written_names:
                     output.append(f"{s['name']}（{s['reason']}）")
@@ -205,7 +213,7 @@ def main():
     
     # Unmatched section
     orig_unmatched = wl_sections.get('未匹配题材', [])
-    output.append('# 未匹配题材')
+    output.append(format_topic_header('未匹配题材'))
     for entry_line, name, desc in orig_unmatched:
         if entry_line.strip() and name not in written_names:
             output.append(entry_line.strip())

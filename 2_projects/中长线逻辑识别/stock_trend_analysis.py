@@ -53,6 +53,8 @@ import json
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
 
+from _topic_utils import parse_topic_header, format_topic_header
+
 # 缓存文件路径
 CACHE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".stock_cache")
 CACHE_FILE = os.path.join(CACHE_DIR, "stock_data.json")
@@ -425,7 +427,7 @@ def read_stock_list_from_md(file_path: str) -> list:
                 # 保存前一个分组
                 if current_stocks:
                     groups.append((current_group, current_stocks))
-                current_group = line[3:].strip()
+                current_group = parse_topic_header(line)[0]  # 只用 topic_name 做分类
                 current_stocks = []
             elif line.startswith('# '):
                 # 一级标题作为整个文件的标题，不作为分组
@@ -1413,8 +1415,9 @@ _HARDCODED_MAP = {
 
 
 def _parse_sectors_for_toplist(filepath):
-    """解析 interest_stock.md，返回 {题材名: [(原始行, 股票名)]}"""
+    """解析 interest_stock.md，返回 ({题材名: [(原始行, 股票名)]}, {题材名: 备注})"""
     sectors = {}
+    sector_notes = {}  # topic_name → topic_note
     current_sector = None
     with open(filepath, 'r', encoding='utf-8') as f:
         for line in f:
@@ -1422,12 +1425,15 @@ def _parse_sectors_for_toplist(filepath):
             if not line:
                 continue
             if line.startswith('# '):
-                current_sector = line[2:].strip()
+                topic_name, topic_note = parse_topic_header(line)
+                current_sector = topic_name
                 sectors[current_sector] = []
+                if topic_note:
+                    sector_notes[current_sector] = topic_note
             elif current_sector:
                 name = re.split(r'[（(【]', line)[0].strip()
                 sectors[current_sector].append((line, name))
-    return sectors
+    return sectors, sector_notes
 
 
 def _get_stock_code_for_toplist(stock_name, code_map):
@@ -1487,7 +1493,7 @@ def generate_top_list(input_path, output_path):
     对每个题材，按近10日涨幅排序，保留前15名
     """
     print("📌 生成 top_list.md（基于最新缓存数据）...")
-    sectors = _parse_sectors_for_toplist(input_path)
+    sectors, sector_notes = _parse_sectors_for_toplist(input_path)
     cache = load_cache()
     code_map = load_stock_code_map()
 
@@ -1519,11 +1525,12 @@ def generate_top_list(input_path, output_path):
             scored.append((ret, orig_line, name))
         scored.sort(key=lambda x: x[0], reverse=True)
         top15 = scored[:15]
+        header = format_topic_header(sname, sector_notes.get(sname, ''))
         if first:
-            lines.append(f"# {sname}")
+            lines.append(header)
             first = False
         else:
-            lines.append(f"\n# {sname}")
+            lines.append(f"\n{header}")
         for ret, ol, _ in top15:
             if ret == float('-inf'):
                 lines.append(f"{ol}  # ⚠️ 无近10日数据")
@@ -2194,7 +2201,7 @@ def parse_sector_mapping(md_file_path: str) -> dict:
                     continue
                 # 板块标题行
                 if line.startswith('#'):
-                    current_sector = line.lstrip('#').strip()
+                    current_sector = parse_topic_header(line)[0]  # 只用 topic_name 做分类
                     continue
                 # 标的行：清理括号注释后作为 key
                 stock_clean = clean_stock_name(line)

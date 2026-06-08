@@ -28,7 +28,7 @@ ETF_CONFIG = [
     ("沪深300ETF", 2600),
     ("半导体设备ETF", 3000),
     ("上证50ETF", 2500),
-    ("科创芯片ETF", 300),
+    ("科创芯片ETF", 2000),
     ("创业板ETF", 2000),
 ]
 
@@ -712,6 +712,69 @@ def check_ma_pressure_support(date_str, date_label):
     return alerts
 
 
+# ======== 策略 6: 上证 MACD 超卖机会检测 ========
+
+def check_macd_oversold(date_label):
+    """
+    计算上证指数 MACD(12,26,9) 柱值。
+    当 MACD 柱 < -50 时提示极端超卖机会。
+    """
+    alerts = []
+    all_data = load_all_index_data()
+    sh_data = all_data.get("上证指数")
+    if not sh_data or len(sh_data) < 26:
+        return alerts
+
+    closes = [d["close"] for d in sh_data]
+
+    # EMA(12)
+    ema12 = [None] * len(closes)
+    ema12[11] = sum(closes[:12]) / 12
+    mult12 = 2 / 13
+    for i in range(12, len(closes)):
+        ema12[i] = (closes[i] - ema12[i-1]) * mult12 + ema12[i-1]
+
+    # EMA(26)
+    ema26 = [None] * len(closes)
+    ema26[25] = sum(closes[:26]) / 26
+    mult26 = 2 / 27
+    for i in range(26, len(closes)):
+        ema26[i] = (closes[i] - ema26[i-1]) * mult26 + ema26[i-1]
+
+    # DIF = EMA12 - EMA26
+    dif = [ema12[i] - ema26[i] if (ema12[i] and ema26[i]) else None for i in range(len(closes))]
+
+    # DEA = EMA(DIF, 9)
+    dea = [None] * len(closes)
+    valid_dif = [d for d in dif if d is not None]
+    if len(valid_dif) >= 9:
+        start = next(i for i, d in enumerate(dif) if d is not None) + 8
+        dea[start] = sum(valid_dif[:9]) / 9
+        mult9 = 2 / 10
+        for i in range(start + 1, len(dif)):
+            if dif[i] is not None:
+                dea[i] = (dif[i] - dea[i-1]) * mult9 + dea[i-1]
+
+    # MACD 柱 = 2*(DIF - DEA)
+    latest_bar = None
+    for i in range(len(closes) - 1, -1, -1):
+        if dif[i] is not None and dea[i] is not None:
+            latest_bar = round(2 * (dif[i] - dea[i]), 2)
+            break
+
+    if latest_bar is None:
+        return alerts
+
+    if latest_bar < -50:
+        alerts.append({
+            "type": "opp",
+            "label": f"{date_label}：上证 MACD 绿柱 {latest_bar}，极端超卖机会",
+            "detail": f"MACD柱{latest_bar} < -50，历史极端水平，反弹概率较高",
+        })
+
+    return alerts
+
+
 # ======== 主逻辑 ========
 
 def run_detection(date_str=None, output_json=False, save_tags=False):
@@ -873,6 +936,23 @@ def run_detection(date_str=None, output_json=False, save_tags=False):
     print()
 
     all_alerts.extend(ma_alerts)
+
+    # ======== 策略 6: 上证 MACD 超卖机会检测 ========
+    print(f"{'='*60}")
+    print(f"  策略 6: 上证 MACD 超卖机会检测 [{date_str}]")
+    print(f"{'='*60}\n")
+
+    macd_alerts = check_macd_oversold(date_label)
+    if macd_alerts:
+        for a in macd_alerts:
+            a["strategy"] = "MACD超卖"
+            print(f"  🔵 {a['label']}")
+            print(f"    └ {a['detail']}")
+    else:
+        print(f"  MACD超卖: 无信号（当前MACD柱 > -50）\n")
+    print()
+
+    all_alerts.extend(macd_alerts)
 
     # ======== 汇总 ========
     print(f"\n{'='*60}")

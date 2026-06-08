@@ -3,6 +3,8 @@
 import os, json, glob, unicodedata
 from collections import defaultdict
 
+from _topic_utils import parse_topic_header
+
 BASE = os.path.dirname(os.path.abspath(__file__))
 INDEX_DIR = os.path.join(BASE, ".index_data")
 RANK_DIR = os.path.join(BASE, ".ma5_ranking")
@@ -62,7 +64,7 @@ def parse_sectors():
             if not line:
                 continue
             if line.startswith("#"):
-                cur = line.lstrip("#").strip()
+                cur = parse_topic_header(line)[0]  # 只用 topic_name 做分类
                 continue
             if cur:
                 # 提取名称和备注

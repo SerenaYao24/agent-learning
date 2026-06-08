@@ -14,6 +14,8 @@ import sys
 import datetime
 from pathlib import Path
 
+from _topic_utils import parse_topic_header
+
 # ── 路径配置 ──────────────────────────────────────────────
 BASE_DIR = Path(__file__).resolve().parent
 CACHE_DIR = BASE_DIR / ".stock_cache"
@@ -149,7 +151,7 @@ def load_sector_map():
         if not line:
             continue
         if line.startswith("#"):
-            current_sector = line.lstrip("#").strip()
+            current_sector = parse_topic_header(line)[0]  # 只用 topic_name 做分类
             continue
         if current_sector:
             stock_name = line.strip()
