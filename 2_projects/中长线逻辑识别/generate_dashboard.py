@@ -87,7 +87,8 @@ def load_watched_stocks():
                 if m_note:
                     note = m_note.group(1)
                 name = re.sub(r'[（(].*[）)]', '', line).strip()
-                if re.match(r'^[\u4e00-\u9fff]{2,6}$', name):
+                name = name.split('#')[0].strip()  # 去掉行内注释
+                if re.match(r'^[\u4e00-\u9fffA-Za-z0-9]{2,8}$', name):
                     stocks[name] = {"theme": current_theme, "note": note}
     return stocks, codes, theme_order
 
@@ -189,6 +190,17 @@ def load_stock_ohlcv_readonly(stock_names, watched_stocks, days=20):
     result = {}
     for name in stock_names:
         code = code_map.get(name)
+        # Fallback 1: 京东方A → 京东方 (strip trailing A/B/H/ST etc.)
+        if not code:
+            stripped = re.sub(r'[A-Z]+$', '', name).strip()
+            if stripped and stripped != name:
+                code = code_map.get(stripped)
+        # Fallback 2: TCL中环 → 匹配 TCL中环（...)
+        if not code:
+            for k, v in code_map.items():
+                if k.startswith(name) or k.startswith(name.replace(' ', '')):
+                    code = v
+                    break
         if not code or code not in stock_data:
             continue
         sd = stock_data[code]
