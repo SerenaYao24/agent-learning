@@ -10,7 +10,33 @@ PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 LOG_DIR = os.path.join(PROJECT_DIR, "log")
 INTEREST_PATH = os.path.join(PROJECT_DIR, "interest_stock.md")
 
-# ============== Sector Keyword Mapping (narrow before broad) ==============
+# ============== Concept Group → Sector Priority Mapping ==============
+# 母表标题优先：直接 1:1 映射，忽略异动原因
+CONCEPT_GROUP_MAP = {
+    '工业气体': '半导体材料',
+    '地产产业链': '地产',
+    'PCB产业链': 'PCB',
+    '算力租赁': '算力租赁',
+    '光伏': '光伏',
+    'AI应用': 'AI 应用',
+    '大消费': '消费',
+    '机器人': '机器人',
+    '低空经济': '低空经济',
+    '医药': '生物医药',
+    '电力': '电力',
+}
+
+# 大类标题→允许的板块白名单（约束异动原因匹配范围）
+BROAD_GROUP_SECTORS = {
+    '算力/半导体产业链': [
+        'CPO', 'MLCC 电容', '电子布', '光通信', '磷化铟', '光纤',
+        'PCB 钻针', 'PCB 铜箔/覆铜板', 'PCB', '液冷', '先进封装', '玻璃基板',
+        '电阻电容', '功率半导体', '半导体设备', '半导体材料', '碳化硅',
+        '存储', '国产芯片', '半导体洁净室', '薄膜铌酸锂',
+        'AI 应用', '算力租赁', '算力调度/算力工厂', 'CPU', 'AI 消费电子',
+        'AIDC-电源/发电机', 'AIDC-变压器',
+    ],
+}
 SECTOR_KEYWORDS = OrderedDict([
     ('CPO', ['cpo', '光引擎']),
     ('MLCC 电容', ['mlcc', '离型膜']),
@@ -27,26 +53,27 @@ SECTOR_KEYWORDS = OrderedDict([
     ('电阻电容', ['电容', '被动元件', '电极箔', '超级电容', 'mlpc', '薄膜电容器']),
     ('功率半导体', ['功率半导体', 'igbt', 'mosfet', '功率器件']),
     ('半导体设备', ['半导体设备', '晶圆', '刻蚀', '封装检测', '半导体测试', '光刻机', '泵阀', '超洁净']),
-    ('半导体材料', ['光刻胶', '电子气体', '特种气体', '电子化学品', '硅烷']),
+    ('半导体材料', ['光刻胶', '电子气体', '特种气体', '特殊气体', '电子化学品', '硅烷', '有机硅']),
     ('碳化硅', ['碳化硅', 'sic']),
     ('机器人', ['机器人', '人形机器人', '优必选', '电子皮肤', '宇树', 'peek', '机器狗']),
     ('存储', ['存储', '长鑫', 'hbm', 'dram', 'nand']),
     ('算力租赁', ['算力租赁']),
     ('算力调度/算力工厂', ['算力调度', '算力服务器', 'gpu']),
     ('电力', ['电力', '储能', '电网', '电气', '热电', '特高压', '发电', '充电桩', '煤电', '煤', 'hvdc', '算力电源']),
-    ('小金属/贵金属', ['钨', '锡', '有色', '黄金', '铜', '锗', '钽', '铟', '铌', '铪', '锶', '金属']),
+    ('小金属/贵金属', ['钨', '锡', '有色', '黄金', '铜', '锗', '钽', '铟', '铌', '铪', '锶', '金属', '铁矿', '矿产']),
     ('AI 消费电子', ['ar眼镜', 'ar', 'miniled', 'ai眼镜']),
-    ('AI 应用', ['ai应用', 'ai服务器', '推理服务器', 'ai智能体', 'ai算力', 'ai数据中心', 'aipc', '端侧ai', 'vr', 'ai语料', 'deepseek', '大模型', '混元', 'ai电商']),
-    ('商业航天', ['航天', '商业航天', '卫星', '太空算力', '低空经济', '无人机']),
+    ('AI 应用', ['ai应用', 'ai服务器', '推理服务器', 'ai智能体', 'ai算力', 'ai数据中心', 'aipc', '端侧ai', 'vr', 'ai语料', 'deepseek', '大模型', '混元', 'ai电商', 'ai音视频', 'ai影视']),
+    ('低空经济', ['低空经济', '无人机', '飞行汽车', 'evtol']),
+    ('商业航天', ['航天', '商业航天', '卫星', '太空算力']),
     ('生物医药', ['创新药', 'cro', '仿制药', '原料药', '化学制药', '疫苗', '干细胞']),
-    ('消费', ['服饰', '服装', '白酒', '百货', '零售', '预制菜']),
+    ('消费', ['服饰', '服装', '白酒', '百货', '零售', '预制菜', '旅游', '食品', '啤酒', '文旅', '豆制品']),
     ('国产芯片', ['芯片', '射频', '射频芯片', '存储芯片', '光芯片']),
     ('地产', ['地产', '房地产', '地板']),
     ('燃气/氢能', ['氢能', '氢燃料', '氢氟酸', '制氢']),
     ('核电', ['核电']),
     ('AIDC-电源/发电机', ['发电机', '备用电源']),
     ('AIDC-变压器', ['变压器', 'sst']),
-    ('电池/储能', ['电池', '固态电池', '锂电池', '钠电池']),
+    ('电池/储能', ['电池', '固态电池', '锂电池', '钠电池', '盐湖提锂', '新能源']),
     ('稀土', ['稀土']),
     ('油运', ['油运']),
     ('CPU', ['cpu']),
@@ -55,13 +82,39 @@ SECTOR_KEYWORDS = OrderedDict([
     ('光伏', ['光伏', '太阳能', '钙钛矿', 'tco']),
 ])
 
-def match_sector(reason):
+def _match_by_reason(reason, allowed_sectors=None):
+    """Match sector by reason keywords, optionally constrained to allowed_sectors."""
     reason_lower = reason.lower()
     for sector, keywords in SECTOR_KEYWORDS.items():
+        if allowed_sectors is not None and sector not in allowed_sectors:
+            continue
         for kw in keywords:
             if kw.lower() in reason_lower:
                 return sector
     return None
+
+def match_sector(reason, concept_group=''):
+    """
+    Sector matching with concept group priority:
+    1. Direct 1:1 concept_group → sector mapping (ignores reason)
+    2. Broad concept_group → constrained reason matching (whitelist)
+    3. Fallback: unconstrained reason matching (for '其他概念' etc.)
+    """
+    cg = concept_group.strip() if concept_group else ''
+    
+    # Step 1: Direct concept group → sector
+    if cg in CONCEPT_GROUP_MAP:
+        return CONCEPT_GROUP_MAP[cg]
+    
+    # Step 2: Broad concept group → constrained reason matching
+    if cg in BROAD_GROUP_SECTORS:
+        sector = _match_by_reason(reason, BROAD_GROUP_SECTORS[cg])
+        if sector:
+            return sector
+        # If no match within constraint, fall through to unconstrained
+    
+    # Step 3: Default unconstrained reason matching
+    return _match_by_reason(reason)
 
 def parse_interest_stock(filepath):
     """Parse interest_stock.md -> {section: [(line, name, desc)]}, set of names, {section: note}"""
@@ -143,7 +196,7 @@ def main():
     matched = OrderedDict()
     unmatched = []
     for s in new_stocks:
-        sector = match_sector(s['reason'])
+        sector = match_sector(s['reason'], s.get('concept_group', ''))
         if sector:
             matched.setdefault(sector, []).append(s)
         else:
