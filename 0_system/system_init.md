@@ -22,7 +22,7 @@
 ## 基础行为约束
 
 - 在开启 session 时，优先读取：
-  - 读取 system 信息
+  - 读取 system 信息（读取 `0_system/` 下所有 `.md` 文件：`工作方式.md`、`对话方式.md`、`insights.md`）
   - 当用户进入一个 project 之后，再读取 project 相关的 workflow 信息和 project 本身的信息，project 里的信息会很多，但很多都是过程信息，你都不用了解，具体了解 context.md 和 insight.md 就行
   - 加载所有 skills
 

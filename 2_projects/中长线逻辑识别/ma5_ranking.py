@@ -78,6 +78,8 @@ def build_code_map():
     for _, r in df.iterrows():
         c = r['code']
         n = r['name'].replace(' ', '')
+        # 去除科创板后缀（-U/-W），保持与 interest_stock.md 命名一致
+        n = re.sub(r'-[UW]$', '', n)
         fc = f"sh{c}" if c.startswith('6') else f"sz{c}" if c.startswith(('0', '3')) else None
         if fc:
             code_map[n] = fc

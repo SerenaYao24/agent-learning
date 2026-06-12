@@ -746,6 +746,12 @@ body{{background:#F8FAFC;color:#0F172A;font-family:'Fira Sans',-apple-system,san
 /* Sector table rows */
 .sector-row{{cursor:pointer;transition:background .15s}}
 .sector-row:hover td{{background:#EFF6FF !important}}
+/* Sortable column headers */
+.sector-table thead th{{cursor:pointer;user-select:none;position:relative;padding-right:18px}}
+.sector-table thead th:hover{{background:#EEF2FF}}
+.sector-table thead th .sort-arrow{{position:absolute;right:4px;top:50%;transform:translateY(-50%);font-size:10px;color:#94A3B8;line-height:1}}
+.sector-table thead th.sort-asc .sort-arrow{{color:#2563EB}}
+.sector-table thead th.sort-desc .sort-arrow{{color:#2563EB}}
 /* MA5 排名变化标签 */
 .rank-tag{{display:inline-block;padding:1px 6px;border-radius:8px;font-size:10px;font-weight:600;margin:1px 2px;min-width:28px;text-align:center}}
 .rank-tag.up{{background:#F0FDF4;color:#15803D;border:1px solid #BBF7D0}}
@@ -817,9 +823,17 @@ body{{background:#F8FAFC;color:#0F172A;font-family:'Fira Sans',-apple-system,san
 <!-- ====== Tab 3: 板块数据 ====== -->
 <div class="tab-pane" id="tab-sector">
   <div class="rank-wrap" style="max-height:none">
-    <table class="rank-table" id="sector-table">
+    <table class="rank-table sector-table" id="sector-table">
       <thead><tr>
-        <th>题材名称</th><th>状态</th><th>d1</th><th>d2</th><th>d3</th><th>d4</th><th>d5</th><th>近5日涨幅</th><th>涨超5%占比</th><th>明星标的</th>
+        <th>题材名称</th><th data-col="status" onclick="sortSector('status')">状态<span class="sort-arrow">⇅</span></th>
+        <th data-col="d1" onclick="sortSector('d1')">d1<span class="sort-arrow">⇅</span></th>
+        <th data-col="d2" onclick="sortSector('d2')">d2<span class="sort-arrow">⇅</span></th>
+        <th data-col="d3" onclick="sortSector('d3')">d3<span class="sort-arrow">⇅</span></th>
+        <th data-col="d4" onclick="sortSector('d4')">d4<span class="sort-arrow">⇅</span></th>
+        <th data-col="d5" onclick="sortSector('d5')">d5<span class="sort-arrow">⇅</span></th>
+        <th data-col="ret_5d" onclick="sortSector('ret_5d')">近5日涨幅<span class="sort-arrow">⇅</span></th>
+        <th data-col="gt5_pct" onclick="sortSector('gt5_pct')">涨超5%占比<span class="sort-arrow">⇅</span></th>
+        <th>明星标的</th>
       </tr></thead>
       <tbody id="sector-table-body"></tbody>
     </table>
@@ -832,7 +846,7 @@ body{{background:#F8FAFC;color:#0F172A;font-family:'Fira Sans',-apple-system,san
   <div class="rank-wrap" style="max-height:none">
     <table class="rank-table" id="ma5-table">
       <thead><tr>
-        <th>排名变化</th><th>名称</th><th>今日涨幅</th><th>今日排名</th><th>所属题材</th><th>备注</th>
+        <th>排名变化</th><th>代码</th><th>名称</th><th>今日涨幅</th><th>今日排名</th><th>所属题材</th><th>备注</th>
       </tr></thead>
       <tbody id="ma5-table-body"></tbody>
     </table>
@@ -1457,6 +1471,7 @@ function buildMa5Trend() {{
       var chgCls = String(chg).startsWith('-') ? 'down' : 'up';
       h += '<tr>' +
         '<td style="white-space:nowrap">' + tagHtml + '</td>' +
+        '<td style="font-size:11px;color:#64748B">' + (s.code||'') + '</td>' +
         '<td>' + s.name + '</td>' +
         '<td class="' + chgCls + '">' + chg + '</td>' +
         '<td>' + (s.rank||'—') + '</td>' +
@@ -1476,14 +1491,69 @@ function buildMa5Trend() {{
   }};
 }}
 
-// ========== 板块数据表格 ==========
+// ========== 板块数据表格（支持列排序） ==========
+var _sectorSortCol = '';
+var _sectorSortAsc = true;
+
+function parseNumeric(val) {{
+  if (val == null || val === '') return null;
+  var s = String(val).replace(/%/g, '').replace(/＋/g, '+').replace(/—/g, '').trim();
+  if (s === '' || s === '—') return null;
+  return parseFloat(s);
+}}
+
+function sortSector(col) {{
+  if (_sectorSortCol === col) {{
+    _sectorSortAsc = !_sectorSortAsc;
+  }} else {{
+    _sectorSortCol = col;
+    _sectorSortAsc = col === 'status' ? true : false;
+  }}
+  buildSectorTable();
+}}
+
+function getSortValue(s, col) {{
+  if (col === 'status') return (s.status || '').toString();
+  var raw;
+  if (col === 'ret_5d') raw = s.ret_5d;
+  else if (col === 'gt5_pct') raw = s.gt5_pct;
+  else raw = s[col];
+  var n = parseNumeric(raw);
+  return n != null && !isNaN(n) ? n : -99999;
+}}
+
 function buildSectorTable() {{
-  var data = (window._CHART_BUILDSECTORTABLE||[]);
+  var data = (window._CHART_BUILDSECTORTABLE||[]).slice();
   var el = document.getElementById('sector-table-body');
   if (!el || !data.length) {{
     if (el) el.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:24px;color:#64748B">暂无板块数据</td></tr>';
     return;
   }}
+
+  // Sort
+  if (_sectorSortCol) {{
+    data.sort(function(a, b) {{
+      var va = getSortValue(a, _sectorSortCol);
+      var vb = getSortValue(b, _sectorSortCol);
+      if (typeof va === 'string' && typeof vb === 'string') {{
+        return _sectorSortAsc ? va.localeCompare(vb, 'zh-CN') : vb.localeCompare(va, 'zh-CN');
+      }}
+      return _sectorSortAsc ? va - vb : vb - va;
+    }});
+  }}
+
+  // Update sort arrow indicators
+  var ths = document.querySelectorAll('#sector-table thead th');
+  ths.forEach(function(th) {{
+    th.classList.remove('sort-asc', 'sort-desc');
+    var col = th.getAttribute('data-col');
+    if (col === _sectorSortCol) {{
+      th.classList.add(_sectorSortAsc ? 'sort-asc' : 'sort-desc');
+      var arrow = th.querySelector('.sort-arrow');
+      if (arrow) arrow.textContent = _sectorSortAsc ? '▲' : '▼';
+    }}
+  }});
+
   var h = '';
   data.forEach(function(s) {{
     h += '<tr class="sector-row" onclick="switchTabWithTheme(&quot;stock&quot;,&quot;' + s.name.replace(/"/g,'&quot;') + '&quot;)" title="点击查看该题材个股">';
@@ -1744,7 +1814,7 @@ function buildMonitorTab() {{
     addEl.innerHTML = '<div class=\"monitor-form\">'+
       '<input type=\"text\" id=\"mon-name\" placeholder=\"股票名称\">'+
       '<select id=\"mon-type\" style=\"padding:6px 10px;border-radius:6px;font-size:12px;background:#FFF;color:#0F172A;border:1px solid #CBD5E1;font-family:inherit\"><option>重点监控</option><option>触发严重异动（暂未监管）</option></select>'+
-      '<select id=\"mon-rule\" style=\"padding:6px 10px;border-radius:6px;font-size:12px;background:#FFF;color:#0F172A;border:1px solid #CBD5E1;font-family:inherit\"><option>30天200%</option><option>10天100%</option></select>'+
+      '<select id=\"mon-rule\" style=\"padding:6px 10px;border-radius:6px;font-size:12px;background:#FFF;color:#0F172A;border:1px solid #CBD5E1;font-family:inherit\"><option>30天200%</option><option>10天100%</option><option>监管延长</option></select>'+
       '<input type=\"date\" id=\"mon-start\" value=\"'+today+'\" oninput=\"onMonStartChange()\" onchange=\"onMonStartChange()\">'+
       '<input type=\"date\" id=\"mon-end\" value=\"'+addTradingDays(today,10)+'\">'+
       '<button onclick=\"addMonitor()\">添加</button>'+
@@ -1772,6 +1842,13 @@ function addMonitor() {{
   document.getElementById('mon-name').value = '';
 }}
 
+function onMonDateChange(idx, field, val) {{
+  if (_monitorData[idx]) {{
+    _monitorData[idx][field] = val;
+    saveMonitorData(_monitorData);
+  }}
+}}
+
 function deleteMonitor(idx) {{
   _monitorData.splice(idx,1);
   saveMonitorData(_monitorData);
@@ -1797,7 +1874,7 @@ function renderMonitorTable(data) {{
   data.forEach(function(r,i) {{
     var active = r['结束'] >= today;
     var cls = active ? 'monitor-active' : 'monitor-inactive';
-    h += '<tr class=\"'+cls+'\"><td>'+r['名称']+'</td><td style=\"cursor:pointer\" onclick=\"toggleMonType('+i+')\">'+r['类型']+'</td><td>'+(r['规则']||'—')+'</td><td>'+r['开始']+'</td><td>'+r['结束']+'</td><td><button class=\"del-btn\" onclick=\"deleteMonitor('+i+')\">×</button></td></tr>';
+    h += '<tr class=\"'+cls+'\"><td>'+r['名称']+'</td><td style=\"cursor:pointer\" onclick=\"toggleMonType('+i+')\">'+r['类型']+'</td><td>'+(r['规则']||'—')+'</td><td><input type="date" value="'+r['开始']+'" onchange="onMonDateChange('+i+',&apos;开始&apos;,this.value)" style="width:110px;padding:1px 3px;font-size:11px;border:1px solid #CBD5E1;border-radius:3px;background:transparent;color:inherit;font-family:inherit;color-scheme:light"></td><td><input type="date" value="'+r['结束']+'" onchange="onMonDateChange('+i+',&apos;结束&apos;,this.value)" style="width:110px;padding:1px 3px;font-size:11px;border:1px solid #CBD5E1;border-radius:3px;background:transparent;color:inherit;font-family:inherit;color-scheme:light"></td><td><button class=\"del-btn\" onclick=\"deleteMonitor('+i+')\">×</button></td></tr>';
   }});
   h += '</tbody></table>';
   el.innerHTML = h;

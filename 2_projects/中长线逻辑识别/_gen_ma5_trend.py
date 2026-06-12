@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """生成近5日MA5角度排名趋势数据 -> .index_data/ma5_trend.json"""
-import os, json, glob, unicodedata
+import os, json, glob, unicodedata, re
 from collections import defaultdict
 
 from _topic_utils import parse_topic_header
@@ -39,6 +39,8 @@ def parse_ranking(path):
             raw_name = cols[name_idx].strip()
             # 全角→半角标准化（如"粤电力Ａ"→"粤电力A"）
             norm_name = unicodedata.normalize('NFKC', raw_name)
+            # 去除科创板后缀（如"中巨芯-U"→"中巨芯"、"西安奕材-U"→"西安奕材"）
+            norm_name = re.sub(r'-[UW]$', '', norm_name)
             rows.append({
                 "code": norm_code,
                 "name": norm_name,

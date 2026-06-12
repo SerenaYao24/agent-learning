@@ -72,6 +72,9 @@ def main():
         if success:
             ok += 1
             print(f"  ✓ 完成")
+            if output:
+                for line in output.splitlines()[-20:]:
+                    print(f"    {line}")
         else:
             fail += 1
             print(f"  ⚠ 失败，继续下一步")

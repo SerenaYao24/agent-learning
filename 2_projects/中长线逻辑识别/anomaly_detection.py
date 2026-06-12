@@ -756,11 +756,16 @@ def check_macd_oversold(date_label):
                 dea[i] = (dif[i] - dea[i-1]) * mult9 + dea[i-1]
 
     # MACD 柱 = 2*(DIF - DEA)
-    latest_bar = None
+    latest_dif = latest_dea = latest_bar = None
     for i in range(len(closes) - 1, -1, -1):
         if dif[i] is not None and dea[i] is not None:
+            latest_dif = round(dif[i], 2)
+            latest_dea = round(dea[i], 2)
             latest_bar = round(2 * (dif[i] - dea[i]), 2)
             break
+
+    if latest_bar is not None:
+        print(f"  上证指数 MACD(12,26,9): DIF={latest_dif}  DEA={latest_dea}  BAR={latest_bar}\n")
 
     if latest_bar is None:
         return alerts
