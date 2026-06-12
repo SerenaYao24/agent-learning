@@ -11,6 +11,7 @@ MONITOR_FILE = os.path.join(DATA_DIR, "monitor.json")
 OPP_TAGS_FILE = os.path.join(DATA_DIR, "opp_tags.json")
 INDEX_STATE_FILE = os.path.join(DATA_DIR, "index_state.json")
 INDEX_LEVELS_FILE = os.path.join(DATA_DIR, "index_levels.json")
+REVIEW_FILE = os.path.join(DATA_DIR, "review.json")
 
 os.makedirs(INDEX_DIR, exist_ok=True)
 
@@ -93,6 +94,11 @@ class DashboardHandler(SimpleHTTPRequestHandler):
         elif path == "/api/index-levels":
             data = read_json(INDEX_LEVELS_FILE, {"lines": []})
             self._json_response(data)
+        elif path == "/api/review":
+            all_data = read_json(REVIEW_FILE, [])
+            # 按 created_at 降序，取最近 5 条
+            all_data.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+            self._json_response(all_data[:5])
         else:
             super().do_GET()
 
@@ -134,6 +140,47 @@ class DashboardHandler(SimpleHTTPRequestHandler):
             try:
                 data = json.loads(body)
                 write_json(INDEX_LEVELS_FILE, data)
+                self._json_response({"ok": True})
+            except Exception as e:
+                self._json_response({"ok": False, "error": str(e)}, 400)
+        elif path == "/api/review":
+            try:
+                entry = json.loads(body)
+                # 确保必填字段
+                entry.setdefault("date", "")
+                entry.setdefault("operation", "")
+                entry.setdefault("expectation", "")
+                entry.setdefault("detail", "")
+                entry.setdefault("created_at", "")
+                all_data = read_json(REVIEW_FILE, [])
+                all_data.append(entry)
+                write_json(REVIEW_FILE, all_data)
+                self._json_response({"ok": True})
+            except Exception as e:
+                self._json_response({"ok": False, "error": str(e)}, 400)
+        else:
+            self._json_response({"error": "not found"}, 404)
+
+    def do_PUT(self):
+        parsed = urlparse(self.path)
+        path = parsed.path
+        content_len = int(self.headers.get("Content-Length", 0))
+        body = self.rfile.read(content_len).decode("utf-8")
+
+        if path == "/api/review":
+            try:
+                entry = json.loads(body)
+                created_at = entry.get("created_at", "")
+                all_data = read_json(REVIEW_FILE, [])
+                for i, e in enumerate(all_data):
+                    if e.get("created_at", "") == created_at:
+                        all_data[i] = entry
+                        write_json(REVIEW_FILE, all_data)
+                        self._json_response({"ok": True})
+                        return
+                # 未找到匹配的 created_at → 追加
+                all_data.append(entry)
+                write_json(REVIEW_FILE, all_data)
                 self._json_response({"ok": True})
             except Exception as e:
                 self._json_response({"ok": False, "error": str(e)}, 400)

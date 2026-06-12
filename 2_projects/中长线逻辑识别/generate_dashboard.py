@@ -677,7 +677,7 @@ body{{background:#F8FAFC;color:#0F172A;font-family:'Fira Sans',-apple-system,san
 .monitor-form button:hover{{background:#1D4ED8}}
 .del-btn{{background:transparent;border:1px solid transparent;color:#64748B;cursor:pointer;font-size:14px;padding:0 6px;border-radius:4px;line-height:1.2}}
 .del-btn:hover{{color:#ef4444;background:#FFF7ED}}
-.monitor-inactive{{color:#64748B}}
+.monitor-expired{{background:#F1F5F9;color:#94A3B8}}
 .monitor-active{{color:#0F172A}}
 
 /* Grid */
@@ -758,6 +758,44 @@ body{{background:#F8FAFC;color:#0F172A;font-family:'Fira Sans',-apple-system,san
 .rank-tag.down{{background:#FFF7ED;color:#C2410C;border:1px solid #FED7AA}}
 .rank-tag.none{{background:transparent;color:#94A3B8;border:1px dashed #CBD5E1}}
 
+/* Review Drawer */
+.drawer-overlay{{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.2);z-index:200;display:none}}
+.drawer-overlay.open{{display:block}}
+.drawer{{position:fixed;top:0;right:-440px;width:420px;height:100vh;background:#FFF;z-index:210;box-shadow:-2px 0 16px rgba(0,0,0,.08);transition:right .3s ease;display:flex;flex-direction:column;overflow:hidden}}
+.drawer.open{{right:0}}
+.drawer-header{{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid #E2E8F0;flex-shrink:0}}
+.drawer-header h3{{font-size:15px;font-weight:600;color:#0F172A}}
+.drawer-close{{background:none;border:none;font-size:20px;color:#94A3B8;cursor:pointer;padding:0 4px;line-height:1}}
+.drawer-close:hover{{color:#475569}}
+.drawer-body{{flex:1;overflow-y:auto;padding:16px 20px}}
+.review-form{{display:flex;flex-direction:column;gap:10px;padding-bottom:16px;border-bottom:1px solid #E2E8F0;margin-bottom:16px}}
+.review-form-row{{display:flex;gap:8px;align-items:center}}
+.review-form-row.label-top{{flex-direction:column;align-items:stretch}}
+.review-form-row label{{font-size:12px;color:#64748B;white-space:nowrap;font-weight:600}}
+.review-form input[type=date]{{padding:6px 10px;border-radius:6px;font-size:12px;border:1px solid #CBD5E1;font-family:inherit;color-scheme:light}}
+.review-form select{{padding:6px 10px;border-radius:6px;font-size:12px;border:1px solid #CBD5E1;font-family:inherit;background:#FFF;color:#0F172A}}
+.review-form textarea{{padding:8px 10px;border-radius:6px;font-size:12px;border:1px solid #CBD5E1;font-family:inherit;resize:vertical;line-height:1.5;width:100%;box-sizing:border-box}}
+.review-form button{{padding:6px 16px;border-radius:6px;font-size:12px;border:none;cursor:pointer;background:#2563EB;color:#fff;font-family:inherit;align-self:flex-end}}
+.review-form button:hover{{background:#1D4ED8}}
+.review-item{{padding:12px 0;border-bottom:1px solid #F1F5F9}}
+.review-item:last-child{{border-bottom:none}}
+.review-item-top{{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}}
+.review-item-date{{font-size:11px;color:#94A3B8}}
+.review-item-op{{padding:2px 8px;border-radius:4px;font-size:11px;font-weight:500}}
+.review-item-op.attack{{background:#F0FDF4;color:#15803D;border:1px solid #BBF7D0}}
+.review-item-op.defense{{background:#FFF7ED;color:#C2410C;border:1px solid #FED7AA}}
+.review-item-expect{{font-size:13px;color:#0F172A;margin-bottom:4px;line-height:1.5}}
+.review-item-expect::before{{content:"操作预期: ";color:#64748B;font-size:11px}}
+.review-item-detail{{font-size:12px;color:#64748B;line-height:1.6;white-space:pre-wrap}}
+.load-more{{text-align:center;padding:12px 0;color:#2563EB;font-size:12px;cursor:pointer}}
+.load-more:hover{{text-decoration:underline}}
+.no-review{{text-align:center;padding:32px 0;color:#94A3B8;font-size:13px}}
+.review-btn{{background:none;border:1px solid #CBD5E1;border-radius:6px;padding:4px 10px;font-size:12px;color:#64748B;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:4px;white-space:nowrap}}
+.review-btn:hover{{background:#F1F5F9;color:#0F172A;border-color:#94A3B8}}
+.review-btn svg{{width:14px;height:14px}}
+.review-edit-btn{{background:none;border:none;font-size:13px;color:#94A3B8;cursor:pointer;padding:0 4px;line-height:1;margin-left:auto}}
+.review-edit-btn:hover{{color:#2563EB}}
+
 </style>
 </head>
 <body>
@@ -767,6 +805,10 @@ body{{background:#F8FAFC;color:#0F172A;font-family:'Fira Sans',-apple-system,san
     <h1>数据看板</h1>
     <div class="date">数据日期: {latest_date}</div>
   </div>
+  <button class="review-btn" onclick="toggleReviewDrawer()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+    复盘
+  </button>
 </div>
 
 <div class="indicators">
@@ -1845,7 +1887,11 @@ function addMonitor() {{
 function onMonDateChange(idx, field, val) {{
   if (_monitorData[idx]) {{
     _monitorData[idx][field] = val;
+    if (field === '开始') {{
+      _monitorData[idx]['结束'] = addTradingDays(val, 10);
+    }}
     saveMonitorData(_monitorData);
+    renderMonitorTable(_monitorData);
   }}
 }}
 
@@ -1866,15 +1912,17 @@ function toggleMonType(idx) {{
 function renderMonitorTable(data) {{
   var el = document.getElementById('monitor-table');
   if (!el) return;
-  // 按监管开始时间从近到远排列
-  data = data.slice().sort(function(a,b){{ return (b['开始']||'').localeCompare(a['开始']||''); }});
   if (!data.length) {{ el.innerHTML = '<div class=\"empty-state\"><div class=\"icon\">📋</div><p>暂无监控记录</p></div>'; return; }}
+  // 按监管开始时间从近到远排列（使用原始索引避免排序后索引错位）
+  var indices = data.map(function(_,i) {{ return i; }});
+  indices.sort(function(a,b){{ return (data[b]['开始']||'').localeCompare(data[a]['开始']||''); }});
   var today = new Date().toISOString().slice(0,10);
   var h = '<table class=\"rank-table\"><thead><tr><th>名称</th><th>类型</th><th>触发规则</th><th>开始</th><th>结束</th><th>操作</th></tr></thead><tbody>';
-  data.forEach(function(r,i) {{
-    var active = r['结束'] >= today;
-    var cls = active ? 'monitor-active' : 'monitor-inactive';
-    h += '<tr class=\"'+cls+'\"><td>'+r['名称']+'</td><td style=\"cursor:pointer\" onclick=\"toggleMonType('+i+')\">'+r['类型']+'</td><td>'+(r['规则']||'—')+'</td><td><input type="date" value="'+r['开始']+'" onchange="onMonDateChange('+i+',&apos;开始&apos;,this.value)" style="width:110px;padding:1px 3px;font-size:11px;border:1px solid #CBD5E1;border-radius:3px;background:transparent;color:inherit;font-family:inherit;color-scheme:light"></td><td><input type="date" value="'+r['结束']+'" onchange="onMonDateChange('+i+',&apos;结束&apos;,this.value)" style="width:110px;padding:1px 3px;font-size:11px;border:1px solid #CBD5E1;border-radius:3px;background:transparent;color:inherit;font-family:inherit;color-scheme:light"></td><td><button class=\"del-btn\" onclick=\"deleteMonitor('+i+')\">×</button></td></tr>';
+  indices.forEach(function(idx) {{
+    var r = data[idx];
+    var expired = r['结束'] < today;
+    var cls = expired ? 'monitor-expired' : 'monitor-active';
+    h += '<tr class=\"'+cls+'\"><td>'+r['名称']+'</td><td style=\"cursor:pointer\" onclick=\"toggleMonType('+idx+')\">'+r['类型']+'</td><td>'+(r['规则']||'—')+'</td><td><input type="date" value="'+r['开始']+'" onchange="onMonDateChange('+idx+',&apos;开始&apos;,this.value)" style="width:110px;padding:1px 3px;font-size:11px;border:1px solid #CBD5E1;border-radius:3px;background:transparent;color:inherit;font-family:inherit;color-scheme:light"></td><td><input type="date" value="'+r['结束']+'" onchange="onMonDateChange('+idx+',&apos;结束&apos;,this.value)" style="width:110px;padding:1px 3px;font-size:11px;border:1px solid #CBD5E1;border-radius:3px;background:transparent;color:inherit;font-family:inherit;color-scheme:light"></td><td><button class=\"del-btn\" onclick=\"deleteMonitor('+idx+')\">×</button></td></tr>';
   }});
   h += '</tbody></table>';
   el.innerHTML = h;
@@ -1917,7 +1965,141 @@ document.addEventListener('DOMContentLoaded', function() {{
     _tabRendered['index'] = true;
   }});
 }});
+
+// ========== 复盘抽屉 ==========
+var _reviewData = [];
+var _reviewOffset = 0;
+var _reviewLimit = 5;
+var _editingReviewId = null;
+
+function toggleReviewDrawer() {{
+  var overlay = document.getElementById('review-overlay');
+  var drawer = document.getElementById('review-drawer');
+  var open = !overlay.classList.contains('open');
+  overlay.classList.toggle('open', open);
+  drawer.classList.toggle('open', open);
+  if (open) {{
+    document.getElementById('review-date').value = new Date().toISOString().slice(0,10);
+    cancelEdit();
+    loadReviewData();
+  }}
+}}
+
+function cancelEdit() {{
+  _editingReviewId = null;
+  document.getElementById('review-expect').value = '';
+  document.getElementById('review-detail').value = '';
+  document.getElementById('review-submit-btn').textContent = '提交';
+  document.getElementById('review-cancel-btn').style.display = 'none';
+}}
+
+function loadReviewData() {{
+  fetch('/api/review').then(function(r){{ return r.json(); }}).then(function(d){{
+    _reviewData = d;
+    var el = document.getElementById('review-list');
+    if (!d.length) {{
+      el.innerHTML = '<div class="no-review">暂无复盘记录</div>';
+      return;
+    }}
+    var h = '';
+    d.forEach(function(r){{
+      var opClass = r['operation'] === '进攻' ? 'attack' : 'defense';
+      var opLabel = r['operation'] || '—';
+      h += '<div class="review-item">'+
+        '<div class="review-item-top">'+
+          '<span class="review-item-date">'+r['date']+'</span>'+
+          '<span class="review-item-op '+opClass+'">'+opLabel+'</span>'+
+          '<button class="review-edit-btn" onclick="editReview(\''+escJs(r['created_at'])+'\')" title="修改">✎</button>'+
+        '</div>'+
+        (r['expectation'] ? '<div class="review-item-expect">'+escHtml(r['expectation'])+'</div>' : '')+
+        (r['detail'] ? '<div class="review-item-detail">'+escHtml(r['detail'])+'</div>' : '')+
+      '</div>';
+    }});
+    el.innerHTML = h;
+  }}).catch(function(){{}});
+}}
+
+function editReview(createdAt) {{
+  var rec = _reviewData.find(function(r){{ return r['created_at'] === createdAt; }});
+  if (!rec) return;
+  _editingReviewId = createdAt;
+  document.getElementById('review-date').value = rec['date'];
+  document.getElementById('review-op').value = rec['operation'];
+  document.getElementById('review-expect').value = rec['expectation'] || '';
+  document.getElementById('review-detail').value = rec['detail'] || '';
+  document.getElementById('review-submit-btn').textContent = '保存';
+  document.getElementById('review-cancel-btn').style.display = 'inline-block';
+}}
+
+function submitReview() {{
+  var date = document.getElementById('review-date').value;
+  var operation = document.getElementById('review-op').value;
+  var expectation = document.getElementById('review-expect').value.trim();
+  var detail = document.getElementById('review-detail').value.trim();
+  if (!expectation && !detail) {{ alert('请填写操作预期或详细笔记'); return; }}
+  var entry = {{
+    date: date,
+    operation: operation,
+    expectation: expectation,
+    detail: detail,
+    created_at: _editingReviewId || new Date().toISOString()
+  }};
+  var method = _editingReviewId ? 'PUT' : 'POST';
+  fetch('/api/review', {{
+    method: method,
+    headers:{{'Content-Type':'application/json'}},
+    body: JSON.stringify(entry)
+  }}).then(function(r){{ return r.json(); }}).then(function(res){{
+    if (res.ok) {{
+      cancelEdit();
+      loadReviewData();
+    }}
+  }}).catch(function(){{}});
+}}
+
+function escHtml(s) {{
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}}
+function escJs(s) {{
+  return s.replace(/'/g,"\\'").replace(/"/g,'&quot;');
+}}
 </script>
+
+<!-- 复盘抽屉 -->
+<div class="drawer-overlay" id="review-overlay" onclick="toggleReviewDrawer()"></div>
+<div class="drawer" id="review-drawer">
+  <div class="drawer-header">
+    <h3>复盘笔记</h3>
+    <button class="drawer-close" onclick="toggleReviewDrawer()">×</button>
+  </div>
+  <div class="drawer-body">
+    <div class="review-form">
+      <div class="review-form-row">
+        <label>日期</label>
+        <input type="date" id="review-date">
+        <label style="margin-left:8px">操作</label>
+        <select id="review-op">
+          <option value="进攻">进攻 · 预期上涨</option>
+          <option value="防守">防守 · 控制回撤</option>
+        </select>
+      </div>
+      <div class="review-form-row label-top">
+        <label>操作预期</label>
+        <textarea id="review-expect" rows="5"></textarea>
+      </div>
+      <div class="review-form-row label-top">
+        <label>详细笔记</label>
+        <textarea id="review-detail" rows="5"></textarea>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button id="review-cancel-btn" onclick="cancelEdit()" style="display:none;padding:6px 16px;border-radius:6px;font-size:12px;border:1px solid #CBD5E1;cursor:pointer;background:#FFF;color:#64748B;font-family:inherit">取消</button>
+        <button id="review-submit-btn" onclick="submitReview()">提交</button>
+      </div>
+    </div>
+    <div id="review-list"></div>
+  </div>
+</div>
+
 </body>
 </html>"""
     return html
