@@ -212,6 +212,37 @@
   - `parsed_reports[:4]` 取最旧的 4 份报告（如 05-18~05-21），而非最近 4 份历史（05-25~05-28），导致 d1~d4 全为"-"
 - **约束**：`load_stock_code_map()` 从 `stock_code_map.json`（679 条）读取，依赖日常分析保持代码映射更新
 
+### 决策 18：看板数据从 generate_dashboard 内嵌改为纯静态壳 + API 动态加载
+- **决策**：`generate_dashboard.py` 移除全部 HTML 模板（`build_html()` 仅输出 JSON 数据文件），`dashboard.html` 改为纯静态文件，所有数据（含日期/涨跌家数/成交额/题材排序等元数据）通过 `/api/data/*` 在浏览器端 fetch 动态加载。
+- **理由**：
+  - HTML 模板作为 Python f-string 维护困难（双花括号转义 `{{}}`），前端代码修改需先理解 Python 模板语法
+  - 所有数据已是 JSON 格式，统一通过 API 服务自然消除数据嵌入的耦合
+  - 新增 3 个 API 端点（`indicators`/`themes`/`colors`）覆盖全部嵌入式数据，`dashboard.html` 现在 100% 动态
+  - `loadAllData()` 增加 `pending = 8` + `loadIndicators()`，指标数据独立异步加载不影响图表就绪
+- **约束**：`dashboard.html` 首次加载需等待多个 fetch 完成（~500ms），用户体验可接受；`generate_dashboard.py` 的数据处理逻辑全部保留
+
+### 决策 19：重点监控排序索引 Bug 修复（原始索引 vs 排序索引）
+- **决策**：`renderMonitorTable` 中改用 `data.map(function(_,i){return i;}).sort(...)` 生成排序后的原始索引数组 `indices`，所有回调（`deleteMonitor`/`toggleMonType`/`onMonDateChange`）传递原始 `_monitorData` 索引。
+- **理由**：原代码 `data = data.slice().sort(...)` 排序后 `forEach` 的 `i` 是排序后位置，但回调直接操作未排序的 `_monitorData`，导致删除/修改作用于错误记录。
+- **约束**：`_monitorData` 在 `renderMonitorTable` 外保持未排序状态，作为唯一数据源。
+
+### 决策 20：复盘笔记 CRUD 实现
+- **决策**：复盘笔记数据落盘到项目根目录 `review.json`，通过 `GET /api/review`（最近 5 条）、`POST /api/review`（追加）、`PUT /api/review`（按 `created_at` 更新）操作，前端抽屉面板提供录入/编辑/列表展示。
+- **理由**：
+  - `created_at` 作为唯一标识（每次新建时 `new Date().toISOString()` 精确到毫秒，冲突概率极低）
+  - `PUT` 按 `created_at` 匹配，未找到则转为追加（容错）
+  - 编辑模式回填表单、提交按钮变"保存"、取消按钮恢复新建状态，体验符合直觉
+- **约束**：仅展示最近 5 条（后端截断），数据文件随 git 推送
+
+### 决策 21：复盘表单布局优化
+- **决策**：表单字段上下排列（`label-top` flex column），文本框 `width:100%` + `box-sizing:border-box` 占满全宽，默认 `rows=5`，标签加粗 `font-weight:600`。
+- **理由**：用户反馈左右排列浪费横向空间、提示字干扰、默认行高不够。
+
+### 试错 19：JS 引号嵌套导致 "Unexpected string"
+- **尝试**：`loadReviewData` 中编辑按钮 `onclick="editReview(''+escJs(...)+'')"` 使用单引号嵌套在 HTML 属性双引号内
+- **结果**：浏览器解析 `onclick="editReview('"` 时被第一个单引号截断，报 "Unexpected string" 语法错误，`loadIndicators` 等后续函数全部未定义
+- **结论**：HTML 属性内用 `\x27` 转义单引号避免嵌套冲突，或改用 `&quot;` 包裹
+
 ### 决策 17：涨停板复盘脚本化 + 模型审查闭环
 - **决策**：涨停数据抓取和自选股匹配固化为两个 Python 脚本（`scrape_zt_data.py` + `match_zt_data.py`），输出写入 `interest_stock_backup.md` 不覆盖原文件；未匹配标的由模型逐条审查，有推荐则直接移入板块并反哺关键词到 `SECTOR_KEYWORDS`。
 - **理由**：

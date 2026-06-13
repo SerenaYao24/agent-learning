@@ -131,52 +131,116 @@ body{background:#F8FAFC;color:#0F172A;font-family:'Fira Sans',-apple-system,sans
 .rank-tag.down{background:#FFF7ED;color:#C2410C;border:1px solid #FED7AA}
 .rank-tag.none{background:transparent;color:#94A3B8;border:1px dashed #CBD5E1}
 
-/* Review Drawer */
-.drawer-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.2);z-index:200;display:none}
+/* Review Drawer — polished */
+.drawer-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,.35);z-index:200;display:none;backdrop-filter:blur(2px)}
 .drawer-overlay.open{display:block}
-.drawer{position:fixed;top:0;right:-440px;width:420px;height:100vh;background:#FFF;z-index:210;box-shadow:-2px 0 16px rgba(0,0,0,.08);transition:right .3s ease;display:flex;flex-direction:column;overflow:hidden}
+.drawer{position:fixed;top:0;right:-540px;width:520px;height:100vh;background:#FFF;z-index:210;box-shadow:-8px 0 32px rgba(15,23,42,.12);transition:right .35s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column;overflow:hidden}
 .drawer.open{right:0}
-.drawer-header{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid #E2E8F0;flex-shrink:0}
-.drawer-header h3{font-size:15px;font-weight:600;color:#0F172A}
-.drawer-close{background:none;border:none;font-size:20px;color:#94A3B8;cursor:pointer;padding:0 4px;line-height:1}
-.drawer-close:hover{color:#475569}
-.drawer-body{flex:1;overflow-y:auto;padding:16px 20px}
-.review-form{display:flex;flex-direction:column;gap:10px;padding-bottom:16px;border-bottom:1px solid #E2E8F0;margin-bottom:16px}
-.review-form-row{display:flex;gap:8px;align-items:center}
-.review-form-row.label-top{flex-direction:column;align-items:stretch}
-.review-form-row label{font-size:12px;color:#64748B;white-space:nowrap;font-weight:600}
-.review-form input[type=date]{padding:6px 10px;border-radius:6px;font-size:12px;border:1px solid #CBD5E1;font-family:inherit;color-scheme:light}
-.review-form select{padding:6px 10px;border-radius:6px;font-size:12px;border:1px solid #CBD5E1;font-family:inherit;background:#FFF;color:#0F172A}
-.review-form textarea{padding:8px 10px;border-radius:6px;font-size:12px;border:1px solid #CBD5E1;font-family:inherit;resize:vertical;line-height:1.5;width:100%;box-sizing:border-box}
-.review-form button{padding:6px 16px;border-radius:6px;font-size:12px;border:none;cursor:pointer;background:#2563EB;color:#fff;font-family:inherit;align-self:flex-end}
-.review-form button:hover{background:#1D4ED8}
-.review-item{padding:12px 0;border-bottom:1px solid #F1F5F9}
-.review-item:last-child{border-bottom:none}
-.review-item-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
-.review-item-date{font-size:11px;color:#94A3B8}
-.review-item-op{padding:2px 8px;border-radius:4px;font-size:11px;font-weight:500}
-.review-item-op.attack{background:#F0FDF4;color:#15803D;border:1px solid #BBF7D0}
-.review-item-op.defense{background:#FFF7ED;color:#C2410C;border:1px solid #FED7AA}
-.review-item-expect{font-size:13px;color:#0F172A;margin-bottom:4px;line-height:1.5}
-.review-item-expect::before{content:"操作预期: ";color:#64748B;font-size:11px}
-.review-item-detail{font-size:12px;color:#64748B;line-height:1.6;white-space:pre-wrap}
-.load-more{text-align:center;padding:12px 0;color:#2563EB;font-size:12px;cursor:pointer}
-.load-more:hover{text-decoration:underline}
-.no-review{text-align:center;padding:32px 0;color:#94A3B8;font-size:13px}
-.review-btn{background:none;border:1px solid #CBD5E1;border-radius:6px;padding:4px 10px;font-size:12px;color:#64748B;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:4px;white-space:nowrap}
-.review-btn:hover{background:#F1F5F9;color:#0F172A;border-color:#94A3B8}
-.review-btn svg{width:14px;height:14px}
-.review-edit-btn{background:none;border:none;font-size:13px;color:#94A3B8;cursor:pointer;padding:0 4px;line-height:1;margin-left:auto}
-.review-edit-btn:hover{color:#2563EB}
+.drawer-header{display:flex;justify-content:space-between;align-items:center;padding:18px 24px 14px;border-bottom:1px solid #E2E8F0;flex-shrink:0}
+.drawer-header h3{font-size:15px;font-weight:600;color:#0F172A;display:flex;align-items:center;gap:8px}
+.drawer-header h3 svg{width:18px;height:18px;color:#475569}
+.drawer-close{background:none;border:none;width:32px;height:32px;border-radius:6px;color:#94A3B8;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.drawer-close:hover{background:#F1F5F9;color:#475569}
+.drawer-close:focus-visible{outline:2px solid #2563EB;outline-offset:2px}
+.drawer-body{flex:1;overflow-y:auto;padding:20px 24px 24px;scrollbar-width:thin;scrollbar-color:#E2E8F0 transparent}
+.drawer-body::-webkit-scrollbar{width:4px}
+.drawer-body::-webkit-scrollbar-thumb{background:#E2E8F0;border-radius:2px}
 
+/* Form */
+.review-form{display:flex;flex-direction:column;gap:12px;padding-bottom:20px;border-bottom:1px solid #E2E8F0;margin-bottom:20px}
+.review-form-row{display:flex;gap:10px;align-items:center}
+.review-form-row.label-top{flex-direction:column;align-items:stretch;gap:6px}
+.review-form-row label{font-size:12px;color:#475569;font-weight:600;letter-spacing:.3px}
+.review-form input[type=date]{padding:8px 12px;border-radius:8px;font-size:13px;border:1px solid #D1D5DB;font-family:inherit;color-scheme:light;transition:border-color .15s,box-shadow .15s;background:#FFF;color:#0F172A;min-height:36px}
+.review-form input[type=date]:focus{outline:none;border-color:#2563EB;box-shadow:0 0 0 3px rgba(37,99,235,.12)}
+.review-form select{padding:8px 12px;border-radius:8px;font-size:13px;border:1px solid #D1D5DB;font-family:inherit;background:#FFF;color:#0F172A;transition:border-color .15s,box-shadow .15s;cursor:pointer;min-height:36px}
+.review-form select:focus{outline:none;border-color:#2563EB;box-shadow:0 0 0 3px rgba(37,99,235,.12)}
+.review-form textarea{padding:10px 12px;border-radius:8px;font-size:13px;border:1px solid #D1D5DB;font-family:inherit;resize:vertical;line-height:1.6;width:100%;box-sizing:border-box;transition:border-color .15s,box-shadow .15s;background:#FFF;color:#0F172A}
+.review-form textarea:focus{outline:none;border-color:#2563EB;box-shadow:0 0 0 3px rgba(37,99,235,.12)}
+.review-form .form-actions{display:flex;gap:8px;justify-content:flex-end;padding-top:4px;align-items:center}
+.review-btn-primary{padding:6px 20px;border-radius:8px;font-size:13px;font-weight:500;border:none;cursor:pointer;background:#2563EB;color:#fff;font-family:inherit;transition:background .15s;white-space:nowrap;display:inline-flex;align-items:center;gap:6px;line-height:1.4}
+.review-btn-primary:hover{background:#1D4ED8}
+.review-btn-primary:active{transform:scale(.97)}
+.review-btn-primary:focus-visible{outline:2px solid #2563EB;outline-offset:2px}
+.review-btn-secondary{padding:6px 16px;border-radius:8px;font-size:13px;font-weight:500;border:1px solid #D1D5DB;cursor:pointer;background:#FFF;color:#475569;font-family:inherit;transition:all .15s;white-space:nowrap;display:inline-flex;align-items:center;line-height:1.4}
+.review-btn-secondary:hover{background:#F1F5F9;border-color:#9CA3AF;color:#0F172A}
+.review-btn-secondary:active{transform:scale(.97)}
+.review-btn-secondary:focus-visible{outline:2px solid #2563EB;outline-offset:2px}
+
+/* Review items */
+.review-list{display:flex;flex-direction:column;gap:0}
+.review-item{padding:16px 0;border-bottom:1px solid #F1F5F9;transition:background .15s;border-radius:6px;margin:0 -4px;padding:14px 4px}
+.review-item:last-child{border-bottom:none}
+.review-item:hover{background:#FAFBFC}
+.review-item-top{display:flex;align-items:center;margin-bottom:8px;gap:10px}
+.review-item-date{font-size:12px;color:#94A3B8;font-weight:500;margin-left:auto}
+.review-item-op{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:.3px}
+.review-item-op.attack{background:#F0FDF4;color:#15803D;border:1px solid #BBF7D0}
+.review-item-op.attack::before{content:'';width:6px;height:6px;border-radius:50%;background:#15803D;flex-shrink:0}
+.review-item-op.defense{background:#FFF7ED;color:#C2410C;border:1px solid #FED7AA}
+.review-item-op.defense::before{content:'';width:6px;height:6px;border-radius:50%;background:#C2410C;flex-shrink:0}
+.review-item-expect{font-size:13px;color:#0F172A;margin-bottom:6px;line-height:1.55;font-weight:500}
+.review-item-detail{font-size:12px;color:#64748B;line-height:1.65;white-space:pre-wrap}
+.review-edit-btn,.review-del-btn{background:none;border:1px solid transparent;width:28px;height:28px;border-radius:6px;color:#CBD5E1;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0}
+.review-edit-btn:hover,.review-del-btn:hover{background:#EFF6FF;border-color:#BFDBFE}
+.review-edit-btn:hover{color:#2563EB}
+.review-del-btn:hover{background:#FFF7ED;border-color:#FED7AA;color:#ef4444}
+.review-edit-btn svg,.review-del-btn svg{width:14px;height:14px}
+.review-edit-btn:focus-visible,.review-del-btn:focus-visible{outline:2px solid #2563EB;outline-offset:2px}
+
+/* Rich text editor for detail */
+.review-editor{border:1px solid #D1D5DB;border-radius:8px;overflow:hidden}
+.review-editor:focus-within{border-color:#2563EB;box-shadow:0 0 0 3px rgba(37,99,235,.12)}
+.review-editor-toolbar{display:flex;gap:2px;padding:4px 6px;background:#F8FAFC;border-bottom:1px solid #E2E8F0;flex-wrap:wrap}
+.review-editor-toolbar button{background:none;border:1px solid transparent;width:28px;height:28px;border-radius:4px;color:#475569;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .1s;font-size:13px;font-weight:600;font-family:inherit}
+.review-editor-toolbar button:hover{background:#E2E8F0;border-color:#CBD5E1}
+.review-editor-toolbar button.active{background:#DBEAFE;color:#2563EB;border-color:#BFDBFE}
+.review-editor-content{min-height:100px;padding:10px 12px;font-size:13px;line-height:1.6;color:#0F172A;outline:none;cursor:text;font-family:inherit}
+.review-editor-content:empty::before{content:attr(data-placeholder);color:#94A3B8}
+
+/* Detail rendered as HTML in list */
+.review-item-detail{font-size:12px;color:#64748B;line-height:1.65}
+.review-item-detail mark{background:#FEF08A;padding:0 2px;border-radius:2px}
+.review-item-detail strong{font-weight:600;color:#0F172A}
+
+/* Review meta — 当前状态卡 */
+.review-meta{background:#F0F5FF;border:1px solid #BFDBFE;border-radius:10px;padding:14px 16px;margin-bottom:16px}
+.review-meta-item{display:flex;align-items:flex-start;gap:8px;padding:5px 0}
+.review-meta-item+.review-meta-item{border-top:1px solid #DBEAFE;margin-top:2px;padding-top:7px}
+.review-meta-label{font-size:11px;color:#1D4ED8;font-weight:600;white-space:nowrap;min-width:72px;padding-top:2px;flex-shrink:0}
+.review-meta-text{font-size:13px;color:#1E3A8A;line-height:1.5;cursor:text;padding:2px 6px;border-radius:4px;transition:background .15s;flex:1;min-height:20px}
+.review-meta-text:hover{background:rgba(37,99,235,.08)}
+.review-meta-text:empty::before{content:attr(data-placeholder);color:#93C5FD}
+.review-meta-text[contenteditable=true]:focus{outline:2px solid #2563EB;outline-offset:1px;background:#FFF}
+.review-meta-text[contenteditable=true]{cursor:text}
+.review-meta-save{font-size:10px;color:#1D4ED8;cursor:pointer;padding:2px 6px;border-radius:4px;background:transparent;border:1px solid transparent;font-family:inherit;white-space:nowrap;flex-shrink:0;display:none}
+.review-meta-save:hover{background:#DBEAFE;border-color:#BFDBFE}
+.review-meta:hover .review-meta-save{display:inline}
+
+/* Empty / misc */
+.no-review{text-align:center;padding:40px 0;color:#94A3B8;font-size:13px;line-height:1.6}
+.review-btn{background:none;border:1px solid #CBD5E1;border-radius:8px;padding:6px 12px;font-size:13px;color:#475569;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:6px;white-space:nowrap;transition:all .15s;min-height:32px}
+.review-btn:hover{background:#F1F5F9;color:#0F172A;border-color:#94A3B8}
+.review-btn svg{width:15px;height:15px}
+
+/* Server offline banner */
+.server-banner{display:none;background:#FEF2F2;border-bottom:1px solid #FECACA;padding:10px 24px;font-size:13px;color:#991B1B;align-items:center;gap:8px}
+.server-banner.show{display:flex}
+.server-banner svg{width:16px;height:16px;flex-shrink:0}
+.server-banner code{background:#FFF;padding:2px 6px;border-radius:4px;font-size:12px;border:1px solid #FECACA;font-family:monospace}
 </style>
 </head>
 <body>
 
+<div class="server-banner" id="server-banner">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+  <span>看板服务未启动。请先运行 <code>python3 dashboard_server.py</code>，然后访问 <code>http://localhost:8977/dashboard.html</code></span>
+</div>
+
 <div class="header">
   <div>
     <h1>数据看板</h1>
-    <div class="date">数据日期: 2026-06-12</div>
+    <div class="date" id="header-date">数据日期: —</div>
   </div>
   <button class="review-btn" onclick="toggleReviewDrawer()">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -185,21 +249,21 @@ body{background:#F8FAFC;color:#0F172A;font-family:'Fira Sans',-apple-system,sans
 </div>
 
 <div class="indicators">
-  <div class="indicator"><span class="label">上涨家数</span><span class="value up">3923</span></div>
-  <div class="indicator"><span class="label">下跌家数</span><span class="value down">1515</span></div>
-  <div class="indicator"><span class="label">涨停</span><span class="value up">88</span></div>
-  <div class="indicator"><span class="label">跌停</span><span class="value down">15</span></div>
+  <div class="indicator"><span class="label">上涨家数</span><span class="value up" id="ind-up">—</span></div>
+  <div class="indicator"><span class="label">下跌家数</span><span class="value down" id="ind-down">—</span></div>
+  <div class="indicator"><span class="label">涨停</span><span class="value up" id="ind-zt">—</span></div>
+  <div class="indicator"><span class="label">跌停</span><span class="value down" id="ind-dt">—</span></div>
   <div class="indicator">
     <span class="label">成交额</span>
-    <span class="value">3.25<span class="sub">万亿</span></span>
+    <span class="value" id="ind-amt">—<span class="sub">万亿</span></span>
   </div>
-  <div class="indicator">
+  <div class="indicator" id="ind-attack">
     <span class="label">进攻票</span>
-    <span class="value-row"><span class="value">24.5%</span><span class="sub" style="font-size:11px;margin-left:4px;color:#0F172A">↓0.8%</span></span>
+    <span class="value-row"><span class="value" id="ind-attack-val">—</span><span class="sub" id="ind-attack-chg" style="font-size:11px;margin-left:4px;color:#0F172A"></span></span>
   </div>
-  <div class="indicator">
+  <div class="indicator" id="ind-defense">
     <span class="label">防守票</span>
-    <span class="value-row"><span class="value">75.5%</span><span class="sub" style="font-size:11px;margin-left:4px;color:#0F172A">↑0.8%</span></span>
+    <span class="value-row"><span class="value" id="ind-defense-val">—</span><span class="sub" id="ind-defense-chg" style="font-size:11px;margin-left:4px;color:#0F172A"></span></span>
   </div>
   <div class="indicator" id="index-state-indicator">
     <span class="label">指数状态</span>
@@ -425,7 +489,9 @@ function switchTab(name) {
 }
 
 // ========== 图表工具 ==========
-const COLORS = ["#2563EB", "#f59e0b", "#ef4444", "#10b981", "#8b5cf6", "#ec4899"];
+var COLORS = ["#2563EB", "#f59e0b", "#ef4444", "#10b981", "#8b5cf6", "#ec4899"];
+// 从API动态加载配色（后续覆盖）
+fetch('/api/data/colors').then(function(r){return r.json();}).then(function(d){if(d&&d.length)COLORS=d;}).catch(function(){});
 const BASE_OPTION = {
   backgroundColor:'transparent',
   textStyle:{color:'#64748B',fontSize:10},
@@ -996,10 +1062,19 @@ function buildSectorTable() {
 
 // ========== 个股数据卡片 ==========
 var _stockTabBuilt = false;
-var _stockThemeOrder = ["低空经济", "半导体材料-六氟化钨", "化工", "半导体材料", "PCB 铜箔/覆铜板", "电池/储能", "PCB 上游/材料", "环氧树脂", "AI 应用", "PCB 钻针", "半导体洁净室", "半导体设备", "物理AI", "磷化铟", "小金属/贵金属", "消费", "燃气/氢能", "机器人", "光通信", "生物医药", "电子布", "先进封装", "存储", "稀土", "功率半导体", "商业航天", "电力", "油运", "MLCC 电容", "地产", "光纤", "液冷", "PCB", "碳化硅", "算力租赁", "算力调度/算力工厂", "光伏", "两存股权", "AI 消费电子", "金刚石", "核电", "CPO", "燃气轮机", "CPU", "老龙反抽", "高速铜链接", "国产芯片", "薄膜铌酸锂", "AIDC-变压器", "脑机接口", "AI PC", "玻璃基板", "AIDC-电源/发电机", "电阻电容", "量子计算", "煤炭", "未匹配题材"];
-var _stockThemeAvg = {"半导体材料-六氟化钨": 5.26, "低空经济": 5.73, "PCB 铜箔/覆铜板": 2.96, "半导体材料": 3.95, "环氧树脂": 2.4, "电池/储能": 2.8, "PCB 钻针": 2.17, "半导体设备": 1.91, "AI 应用": 2.31, "消费": 1.03, "半导体洁净室": 2.1, "化工": 4.04, "物理AI": 1.37, "机器人": 0.71, "磷化铟": 1.15, "PCB 上游/材料": 2.72, "小金属/贵金属": 1.11, "光通信": 0.63, "燃气/氢能": 0.87, "存储": 0.42, "先进封装": 0.44, "生物医药": 0.57, "电子布": 0.5, "稀土": 0.34, "电力": -0.02, "地产": -0.14, "油运": -0.07, "液冷": -0.22, "功率半导体": 0.03, "商业航天": 0.02, "MLCC 电容": -0.11, "光纤": -0.21, "PCB": -0.25, "算力调度/算力工厂": -0.38, "算力租赁": -0.35, "碳化硅": -0.3, "两存股权": -0.65, "光伏": -0.63, "核电": -1.08, "金刚石": -1.05, "AI 消费电子": -1.01, "CPO": -1.09, "燃气轮机": -1.14, "CPU": -1.25, "老龙反抽": -1.3, "高速铜链接": -1.35, "国产芯片": -1.36, "薄膜铌酸锂": -1.39, "AIDC-变压器": -1.57, "脑机接口": -1.58, "电阻电容": -2.15, "AI PC": -1.85, "玻璃基板": -2.02, "AIDC-电源/发电机": -2.02, "量子计算": -2.36, "煤炭": -2.4};
-var _stockFilterTags = {"抗跌题材": ["PCB 铜箔/覆铜板", "小金属/贵金属", "电池/储能", "稀土", "消费", "磷化铟", "PCB 钻针", "生物医药", "光通信", "半导体洁净室", "半导体设备", "高速铜链接", "液冷", "半导体材料", "存储"], "加强题材": ["PCB 铜箔/覆铜板", "电池/储能"]};
-var _stockDefaultTheme = '低空经济';
+var _stockThemeOrder = [];
+var _stockThemeAvg = {};
+var _stockFilterTags = {};
+var _stockDefaultTheme = '全部';
+// 从API动态加载题材数据
+fetch('/api/data/themes').then(function(r){return r.json();}).then(function(d){
+  if (d) {
+    _stockThemeOrder = d.theme_order || [];
+    _stockThemeAvg = d.theme_avg_map || {};
+    _stockFilterTags = d.filter_tags || {};
+    _stockDefaultTheme = d.strongest_sector || '全部';
+  }
+}).catch(function(){});
 
 function buildStockTab() {
   if (_stockTabBuilt) return;
@@ -1315,19 +1390,71 @@ function onIndexStateChange(state) {
   fetch('/api/index-state',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({state:state})}).catch(function(){});
 }
 
+// ===== 服务检测 =====
+function checkServer() {
+  fetch('/api/data/indicators', {method:'HEAD'}).then(function(){
+    document.getElementById('server-banner').classList.remove('show');
+  }).catch(function(){
+    document.getElementById('server-banner').classList.add('show');
+  });
+}
+
+// ===== 动态加载指标数据 =====
+function loadIndicators() {
+  fetch('/api/data/indicators').then(function(r){return r.json();}).then(function(d){
+    if (!d) return;
+    // 日期
+    var dateEl = document.getElementById('header-date');
+    if (dateEl && d.latest_date) dateEl.textContent = '数据日期: ' + d.latest_date;
+    // 涨跌家数
+    var br = d.breadth || {};
+    setText('ind-up', br['上涨'] || '—');
+    setText('ind-down', br['下跌'] || '—');
+    setText('ind-zt', br['涨停'] || '—');
+    setText('ind-dt', br['跌停'] || '—');
+    // 成交额
+    var amtEl = document.getElementById('ind-amt');
+    if (amtEl) amtEl.innerHTML = (d.total_amt_yi || 0).toFixed(2) + '<span class="sub">万亿</span>';
+    // 进攻票
+    setText('ind-attack-val', d.attack_pct != null ? d.attack_pct.toFixed(1)+'%' : '—');
+    var attChg = document.getElementById('ind-attack-chg');
+    if (attChg && d.attack_pct != null && d.prev_attack != null) {
+      var diff = d.attack_pct - d.prev_attack;
+      attChg.textContent = (diff >= 0 ? '↑' : '↓') + Math.abs(diff).toFixed(1) + '%';
+      attChg.style.color = diff >= 0 ? '#15803D' : '#ef4444';
+    }
+    // 防守票
+    setText('ind-defense-val', d.defense_pct != null ? d.defense_pct.toFixed(1)+'%' : '—');
+    var defChg = document.getElementById('ind-defense-chg');
+    if (defChg && d.defense_pct != null && d.prev_defense != null) {
+      var diff = d.defense_pct - d.prev_defense;
+      defChg.textContent = (diff >= 0 ? '↑' : '↓') + Math.abs(diff).toFixed(1) + '%';
+      defChg.style.color = diff >= 0 ? '#15803D' : '#ef4444';
+    }
+  }).catch(function(){});
+}
+function setText(id, val) {
+  var el = document.getElementById(id);
+  if (el) el.textContent = val;
+}
+
 // ===== 异步加载图表数据 =====
 var _DATA_LOADED = false;
 function loadAllData(cb) {
   if (_DATA_LOADED) { cb(); return; }
-  var pending = 7, done = function(){ if (--pending <= 0) { _DATA_LOADED = true; cb(); } };
+  var pending = 8, done = function(){ if (--pending <= 0) { _DATA_LOADED = true; cb(); } };
   [{s:'/api/data/stock-map'}, {s:'/api/data/index-chart'}, {s:'/api/data/etf-chart'}]
     .forEach(function(x){ var el=document.createElement('script'); el.src=x.s; el.onload=done; el.onerror=done; document.head.appendChild(el); });
   [{u:'/api/data/ranking', n:'_CHART_BUILDRANKTABLE'}, {u:'/api/data/block', n:'_CHART_BUILDBLOCKTABLE'}, {u:'/api/data/sector', n:'_CHART_BUILDSECTORTABLE'}, {u:'/api/data/ma5-trend', n:'_CHART_BUILDMA5TREND'}]
     .forEach(function(f){ fetch(f.u).then(function(r){return r.json();}).then(function(d){ window[f.n]=d; done(); }).catch(done); });
+  // 加载指标数据
+  loadIndicators();
+  done();  // indicators 独立加载，不影响图表就绪
 }
 
 // ========== 初始化 ==========
 document.addEventListener('DOMContentLoaded', function() {
+  checkServer();
   loadRiskState();
   loadOppState();
   loadIndexState();
@@ -1338,6 +1465,81 @@ document.addEventListener('DOMContentLoaded', function() {
     _tabRendered['index'] = true;
   });
 });
+
+// ========== 复盘元数据（当前状态） ==========
+var _reviewMeta = {};
+
+function loadReviewMeta() {
+  fetch('/api/review-meta').then(function(r){return r.json();}).then(function(d){
+    _reviewMeta = d || {};
+    ['market_style','personal_state','operation_expect'].forEach(function(key){
+      var el = document.getElementById(key === 'market_style' ? 'meta-market' : key === 'personal_state' ? 'meta-state' : 'meta-expect');
+      if (el) {
+        var val = _reviewMeta[key] || '';
+        el.textContent = val;
+        el.setAttribute('contenteditable', val ? 'false' : 'false');  // default not editable
+      }
+    });
+  }).catch(function(){});
+}
+
+// 点击文本进入编辑模式（双击或点击编辑，点击文本直接可编辑）
+document.addEventListener('click', function(e) {
+  var target = e.target.closest('.review-meta-text');
+  if (!target) return;
+  // If not already editing, make it editable and focus
+  if (target.getAttribute('contenteditable') !== 'true') {
+    target.setAttribute('contenteditable', 'true');
+    target.focus();
+    // Place cursor at end
+    var sel = window.getSelection();
+    var range = document.createRange();
+    range.selectNodeContents(target);
+    range.collapse(false);
+    sel.removeAllRanges();
+    sel.addRange(range);
+  }
+});
+
+// 点击其他地方或按 Enter 保存
+document.addEventListener('blur', function(e) {
+  var target = e.target.closest('.review-meta-text');
+  if (!target) return;
+  if (target.getAttribute('contenteditable') === 'true') {
+    var id = target.id;
+    var key = id === 'meta-market' ? 'market_style' : id === 'meta-state' ? 'personal_state' : 'operation_expect';
+    _reviewMeta[key] = target.textContent.trim();
+    target.setAttribute('contenteditable', 'false');
+    autoSaveMeta();
+  }
+}, true);
+
+// 按 Enter 保存并失焦
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') {
+    var target = e.target.closest('.review-meta-text');
+    if (target && target.getAttribute('contenteditable') === 'true') {
+      e.preventDefault();
+      target.blur();
+    }
+  }
+});
+
+function saveMetaField(key, elId) {
+  var el = document.getElementById(elId);
+  if (!el) return;
+  _reviewMeta[key] = el.textContent.trim();
+  el.setAttribute('contenteditable', 'false');
+  autoSaveMeta();
+}
+
+function autoSaveMeta() {
+  fetch('/api/review-meta', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(_reviewMeta)
+  }).catch(function(){});
+}
 
 // ========== 复盘抽屉 ==========
 var _reviewData = [];
@@ -1354,6 +1556,7 @@ function toggleReviewDrawer() {
   if (open) {
     document.getElementById('review-date').value = new Date().toISOString().slice(0,10);
     cancelEdit();
+    loadReviewMeta();
     loadReviewData();
   }
 }
@@ -1361,8 +1564,9 @@ function toggleReviewDrawer() {
 function cancelEdit() {
   _editingReviewId = null;
   document.getElementById('review-expect').value = '';
-  document.getElementById('review-detail').value = '';
-  document.getElementById('review-submit-btn').textContent = '提交';
+  var detailEl = document.getElementById('review-detail');
+  if (detailEl) detailEl.innerHTML = '';
+  document.getElementById('review-submit-text').textContent = '提交';
   document.getElementById('review-cancel-btn').style.display = 'none';
 }
 
@@ -1380,12 +1584,15 @@ function loadReviewData() {
       var opLabel = r['operation'] || '—';
       h += '<div class="review-item">'+
         '<div class="review-item-top">'+
-          '<span class="review-item-date">'+r['date']+'</span>'+
           '<span class="review-item-op '+opClass+'">'+opLabel+'</span>'+
-          '<button class="review-edit-btn" onclick="editReview(''+escJs(r['created_at'])+'')" title="修改">✎</button>'+
+          '<span class="review-item-date">'+r['date']+'</span>'+
+          '<div style="display:flex;gap:2px">'+
+          '<button class="review-del-btn" onclick="deleteReview(\x27'+escJs(r['created_at'])+'\x27)" title="删除"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>'+
+          '<button class="review-edit-btn" onclick="editReview(\x27'+escJs(r['created_at'])+'\x27)" title="修改"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>'+
+          '</div>'+
         '</div>'+
         (r['expectation'] ? '<div class="review-item-expect">'+escHtml(r['expectation'])+'</div>' : '')+
-        (r['detail'] ? '<div class="review-item-detail">'+escHtml(r['detail'])+'</div>' : '')+
+        (r['detail'] ? '<div class="review-item-detail">'+r['detail']+'</div>' : '')+
       '</div>';
     });
     el.innerHTML = h;
@@ -1399,16 +1606,37 @@ function editReview(createdAt) {
   document.getElementById('review-date').value = rec['date'];
   document.getElementById('review-op').value = rec['operation'];
   document.getElementById('review-expect').value = rec['expectation'] || '';
-  document.getElementById('review-detail').value = rec['detail'] || '';
-  document.getElementById('review-submit-btn').textContent = '保存';
+  document.getElementById('review-detail').innerHTML = rec['detail'] || '';
+  document.getElementById('review-submit-text').textContent = '保存';
   document.getElementById('review-cancel-btn').style.display = 'inline-block';
+}
+
+function deleteReview(createdAt) {
+  if (!confirm('确定删除这条复盘记录？')) return;
+  fetch('/api/review', {
+    method:'DELETE',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({created_at: createdAt})
+  }).then(function(r){ return r.json(); }).then(function(res){
+    if (res.ok) {
+      if (_editingReviewId === createdAt) cancelEdit();
+      loadReviewData();
+    }
+  }).catch(function(){});
+}
+
+function execEdit(cmd, val) {
+  document.execCommand(cmd, false, val || null);
+  document.getElementById('review-detail').focus();
 }
 
 function submitReview() {
   var date = document.getElementById('review-date').value;
   var operation = document.getElementById('review-op').value;
   var expectation = document.getElementById('review-expect').value.trim();
-  var detail = document.getElementById('review-detail').value.trim();
+  var detailEl = document.getElementById('review-detail');
+  var detail = detailEl ? detailEl.innerHTML.trim() : '';
+  if (detail === '<br>' || detail === '') detail = '';
   if (!expectation && !detail) { alert('请填写操作预期或详细笔记'); return; }
   var entry = {
     date: date,
@@ -1436,16 +1664,41 @@ function escHtml(s) {
 function escJs(s) {
   return s.replace(/'/g,"\'").replace(/"/g,'&quot;');
 }
+
+
 </script>
 
 <!-- 复盘抽屉 -->
 <div class="drawer-overlay" id="review-overlay" onclick="toggleReviewDrawer()"></div>
 <div class="drawer" id="review-drawer">
   <div class="drawer-header">
-    <h3>复盘笔记</h3>
-    <button class="drawer-close" onclick="toggleReviewDrawer()">×</button>
+    <h3>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      复盘笔记
+    </h3>
+    <button class="drawer-close" onclick="toggleReviewDrawer()" aria-label="关闭">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
   </div>
   <div class="drawer-body">
+    <!-- 当前状态卡 -->
+    <div class="review-meta" id="review-meta">
+      <div class="review-meta-item">
+        <span class="review-meta-label">市场风格</span>
+        <span class="review-meta-text" id="meta-market" contenteditable="false" data-placeholder="震荡/主升/防御..."></span>
+        <button class="review-meta-save" onclick="saveMetaField('market_style','meta-market')">保存</button>
+      </div>
+      <div class="review-meta-item">
+        <span class="review-meta-label">个人状态</span>
+        <span class="review-meta-text" id="meta-state" contenteditable="false" data-placeholder="冷静/谨慎/激进..."></span>
+        <button class="review-meta-save" onclick="saveMetaField('personal_state','meta-state')">保存</button>
+      </div>
+      <div class="review-meta-item">
+        <span class="review-meta-label">操作预期</span>
+        <span class="review-meta-text" id="meta-expect" contenteditable="false" data-placeholder="进攻/防守/观望..."></span>
+        <button class="review-meta-save" onclick="saveMetaField('operation_expect','meta-expect')">保存</button>
+      </div>
+    </div>
     <div class="review-form">
       <div class="review-form-row">
         <label>日期</label>
@@ -1458,18 +1711,27 @@ function escJs(s) {
       </div>
       <div class="review-form-row label-top">
         <label>操作预期</label>
-        <textarea id="review-expect" rows="5"></textarea>
+        <textarea id="review-expect" rows="5" placeholder="操作逻辑、预期目标、持有/减仓计划..."></textarea>
       </div>
       <div class="review-form-row label-top">
         <label>详细笔记</label>
-        <textarea id="review-detail" rows="5"></textarea>
+        <div class="review-editor">
+          <div class="review-editor-toolbar">
+            <button onclick="execEdit('bold')" title="加粗"><b>B</b></button>
+            <button onclick="execEdit('hiliteColor','#FEF08A')" title="文字底色"><span style="background:#FEF08A;padding:0 4px;border-radius:2px">A</span></button>
+          </div>
+          <div class="review-editor-content" id="review-detail" contenteditable="true" data-placeholder="市场表现、逻辑验证结果、后续观察要点..."></div>
+        </div>
       </div>
-      <div style="display:flex;gap:8px;justify-content:flex-end">
-        <button id="review-cancel-btn" onclick="cancelEdit()" style="display:none;padding:6px 16px;border-radius:6px;font-size:12px;border:1px solid #CBD5E1;cursor:pointer;background:#FFF;color:#64748B;font-family:inherit">取消</button>
-        <button id="review-submit-btn" onclick="submitReview()">提交</button>
+      <div class="form-actions">
+        <button id="review-cancel-btn" class="review-btn-secondary" onclick="cancelEdit()" style="display:none">取消</button>
+        <button id="review-submit-btn" class="review-btn-primary" onclick="submitReview()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          <span id="review-submit-text">提交</span>
+        </button>
       </div>
     </div>
-    <div id="review-list"></div>
+    <div class="review-list" id="review-list"></div>
   </div>
 </div>
 

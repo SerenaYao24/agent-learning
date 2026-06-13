@@ -37,7 +37,7 @@
   - `scrape_ma5_ranking.py` 需 playwright + chromium
   - CSV 文件以页面数据日期命名（如 `ranking_2026-05-22.csv`），非脚本执行日期，避免周末重复运行产生冗余文件
   - `generate_trend_page.py` 需缓存中有 OHLCV 数据
-  - **所有前端变更必须在 `generate_dashboard.py` 模板中修改，禁止直接修改 `dashboard.html`**（HTML 由脚本每次重新生成，直接改 HTML 会在下次运行 `daily_run.py` 时被覆盖）
+  - **`generate_dashboard.py` 仅产出数据文件（JSON/JS），不再生成 HTML**。`dashboard.html` 是纯静态文件，前端代码直接在其中维护
 - **软约束/偏好**：MA5 排行优先爬虫版，公式版备用；风险/机会/监控数据经 API 持久化到项目根目录 JSON 文件
 - **冲突处理**：缓存过期 → `--refresh` 全量刷新
 
@@ -113,35 +113,33 @@ python3 ma5_ranking.py --trend 5     # 近 5 日趋势
 ### 8. 数据看板
 
 ```bash
-python3 generate_dashboard.py        # 写数据文件到 .index_data/ + 生成瘦身 dashboard.html
+python3 generate_dashboard.py        # 处理数据并写入 .index_data/（不再生成 HTML）
 ```
 
 7 个 Tab：指数宏观 / ETF宏观 / 板块数据 / 5日线角度 / 个股数据 / 大宗交易 / 重点监控。
-数据不再内嵌到 HTML，改为写入 `.index_data/` 下的 js/json 文件，由 `dashboard_server.py` 的 `/api/data/*` 端点动态服务，HTML 约 55KB。
-行情指标栏全局可见。上证日K固定关键位线+3万亿量能线。ETF惰性渲染。tooltip智能切换亿/万亿。
+所有数据写入 `.index_data/` 下的 JSON/JS 文件，`dashboard.html` 为纯静态壳，通过 `/api/data/*` 端点动态加载。前端代码直接在 `dashboard.html` 中维护。
 
-**5日线角度Tab**：近5日 MA5 排名变化对比（两日对比差，绿色+上升/橙色-下降），按题材标签筛选（top3 平均排名），列：排名变化/名称/今日涨幅/今日排名/所属题材/备注。
-**大宗交易Tab**：全量数据保存到 `block_trades_*.json`，树状表格按题材分组展示自选股交易，加权折溢率从大到小排列，默认收起。
-**重点监控Tab**：手动录入股票监管信息，字段含名称、类型（重点监控/触发严重异动）、触发规则（30天200%/10天100%）、起止日期（结束默认+10交易日剔除周末），按开始时间从近到远排列，过期灰显。
-**风险标签**：数据驱动（涨跌家数分析 + 上证均线压制 MA5/10/20/30/60/120）+ 手动添加，橙色标签。
-**机会标签**：数据驱动（涨跌家数分析 + 上证均线支撑 MA5/10/20/30/60/120）+ 手动添加，黄绿色标签，与风险标签平行运作。
-**题材统计**：使用 `top_list.md`（近10日涨幅前15）作为股票池，排除僵尸股对板块整体判断的影响。多日报告中 d1~d4 从历史每日报告的题材表获取，d5 从当前 top_list 缓存计算。
-
-### 9. 看板服务（统一入口）
+**看板服务（统一入口）：**
 
 ```bash
 python3 dashboard_server.py          # 启动统一服务（端口 8977）
 ```
 
-替代 `python3 -m http.server`，提供静态文件 + 数据 API + 持久化 API：
-- `GET /api/data/*` — 图表数据端点（stock-map, index-chart, etf-chart, ranking, block, sector, ma5-trend），数据文件由 `generate_dashboard.py` 写入 `.index_data/`
-- `GET/POST /api/risk-tags` — 风险标签持久化 → `risk_tags.json`
-- `GET/POST /api/opp-tags` — 机会标签持久化 → `opp_tags.json`
-- `GET/POST /api/monitor` — 重点监控持久化 → `monitor.json`
+替代 `python3 -m http.server`，提供：
+- 静态文件（`dashboard.html`...）
+- 图表数据端点：`/api/data/stock-map`, `index-chart`, `etf-chart`, `ranking`, `block`, `sector`, `ma5-trend`, `indicators`, `themes`, `colors`
+- 持久化 API：`/api/risk-tags`, `/api/opp-tags`, `/api/monitor`, `/api/review`, `/api/index-state`, `/api/index-levels`
 
-三类经过人工参与的数据文件位于项目根目录，纳入 git 推送。`.index_data/` 和 `.ma5_ranking/` 下的原始数据不推送。
+复盘抽屉：数据看板 header 右侧「复盘」按钮 → 右侧抽屉，支持录入/编辑复盘笔记（进攻/防守操作预期 + 详细文字），按时间倒序排列，数据落盘到 `review.json`。
 
-前端所有图表数据通过 `/api/data/*` 动态加载，标签/监控操作通过 fetch API 与后端通信。`generate_dashboard.py` 生成数据文件 + 瘦身 HTML，两端通过 `dashboard_server.py` 形成闭环。
+行情指标栏全局可见（日期/涨跌家数/成交额/进攻防守票占比及变化）。上证日K固定关键位线+3万亿量能线。ETF惰性渲染。tooltip智能切换亿/万亿。
+
+**5日线角度Tab**：近5日 MA5 排名变化对比（两日对比差，绿色+上升/橙色-下降），按题材标签筛选（top3 平均排名），列：排名变化/名称/今日涨幅/今日排名/所属题材/备注。
+**大宗交易Tab**：全量数据保存到 `block_trades_*.json`，树状表格按题材分组展示自选股交易，加权折溢率从大到小排列，默认收起。
+**重点监控Tab**：手动录入股票监管信息，字段含名称、类型（重点监控/触发严重异动）、触发规则（30天200%/10天100%）、起止日期（结束默认+10交易日剔除周末），按开始时间从近到远排列，过期整行灰色背景。修改开始时间自动更新结束时间。
+**风险标签**：数据驱动（涨跌家数分析 + 上证均线压制 MA5/10/20/30/60/120）+ 手动添加，橙色标签。
+**机会标签**：数据驱动（涨跌家数分析 + 上证均线支撑 MA5/10/20/30/60/120）+ 手动添加，黄绿色标签，与风险标签平行运作。
+**题材统计**：使用 `top_list.md`（近10日涨幅前15）作为股票池，排除僵尸股对板块整体判断的影响。多日报告中 d1~d4 从历史每日报告的题材表获取，d5 从当前 top_list 缓存计算。
 
 ### 7. 题材涨幅排行（按近10日涨幅筛选前15）
 

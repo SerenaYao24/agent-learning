@@ -1,6 +1,23 @@
 # 中长线逻辑识别 — 状态记录
 
-## 2026-06-03（涨停板复盘脚本化 + 模型审查闭环）
+## 2026-06-13（凌晨）— 看板重构：动态加载 + 复盘抽屉 + 重点监控修复
+
+- **已完成**：
+  - `generate_dashboard.py` 重构：移除全部 HTML 模板（`build_html()` 仅输出数据文件），`dashboard.html` 改为纯静态壳
+  - 新增 API 端点：`/api/data/indicators`（日期/涨跌家数/成交额/进攻防守占比）、`/api/data/themes`（题材排序/平均涨幅/最强板块/筛选标签）、`/api/data/colors`（配色数组）
+  - 数据流程：`generate_dashboard.py` 处理数据 → `.index_data/*.json` → `dashboard_server.py` 通过 `/api/data/*` 服务 → 前端 fetch 动态加载
+  - 修复重点监控 Bug：排序索引 vs 原始索引错位（`data.slice().sort()` 后 `forEach` 的 `i` 与 `_monitorData` 索引不对应），改用 `indices` 数组传递原始索引
+  - 重点监控过期行：整行灰色背景（`monitor-expired` CSS class），非仅文字变色
+  - 重点监控时间联动：修改开始日期时，结束日期自动按 `+10 交易日` 更新
+  - 新增复盘抽屉：header 右侧按钮 → 右侧滑出面板，支持录入（日期/进攻防守/操作预期/详细笔记）和修改，按时间倒序排列，落盘到 `review.json`
+  - 复盘抽屉支持编辑：每条记录右上角 ✎ 按钮，点击回填表单，提交使用 `PUT /api/review`
+  - 复盘表单优化：文本框占满全宽、默认 5 行、标签加粗、上下排列
+  - `dashboard_server.py` 新增 `do_PUT` 方法处理 `/api/review` 更新
+  - 约束变更：`generate_dashboard.py` 不再生成 HTML，`dashboard.html` 为静态文件直接维护
+- **当前状态**：看板完全动态加载，所有数据通过 `/api/data/*` 获取；复盘笔记可录入/修改/查看
+- **文档更新**：context.md（约束、看板工作指令）、process_insight.md（新增决策）
+
+---（涨停板复盘脚本化 + 模型审查闭环）
 
 - **已完成**：
   - 创建 `scrape_zt_data.py`：用 agent-browser 抓取短线侠 涨停表现 →全部展开→提取 66 只封板股票（16 列：名称/代码/涨幅/板数/板形/异动原因/龙虎榜等），输出 `log/{日期}_limit_up_data.txt`
