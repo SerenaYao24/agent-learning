@@ -61,11 +61,11 @@ CACHE_FILE = os.path.join(CACHE_DIR, "stock_data.json")
 CODE_MAP_FILE = os.path.join(CACHE_DIR, "stock_code_map.json")  # 股票代码映射文件
 # 报告索引文件（本地，不受 iCloud 同步影响）
 REPORT_INDEX_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".stock_cache", "report_index.txt")
-# 本地报告存储目录（生成时同时写 iCloud + 本地，多日分析只读本地）
+# 本地报告存储目录（主数据源）
 LOCAL_REPORT_DIR = os.path.join(CACHE_DIR, "reports")
 LOCAL_DAILY_REPORT_DIR = os.path.join(LOCAL_REPORT_DIR, "每日分析")
 LOCAL_MULTI_DAY_REPORT_DIR = os.path.join(LOCAL_REPORT_DIR, "多日分析")
-# 报告输出到 iCloud 文稿目录下的"股票分析结果"文件夹
+# iCloud 备份目录（历史报告备份，防止本地清理后丢失）
 BASE_REPORT_DIR = os.path.join(os.path.expanduser("~"), "Library", "Mobile Documents", "com~apple~CloudDocs", "Documents", "股票分析结果")
 DAILY_REPORT_DIR = os.path.join(BASE_REPORT_DIR, "每日分析")
 MULTI_DAY_REPORT_DIR = os.path.join(BASE_REPORT_DIR, "多日分析")
@@ -1334,35 +1334,33 @@ def generate_md_report(grouped_results: list, output_path: str, input_file: str 
 
     detail_content += "---\n\n*报告由股票趋势分析工具自动生成*\n"
 
-    # 写入两个位置：iCloud + 本地
-    icloud_ok = False
+    # 写入本地（主数据源） + iCloud（备份）
+    detail_path = output_path.replace('.md', '_detail.md')
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
     try:
         with open(output_path, 'w', encoding='utf-8') as f:
             f.write(main_content)
         with open(detail_path, 'w', encoding='utf-8') as f:
             f.write(detail_content)
-        icloud_ok = True
         print(f"\n✅ 汇总报告已生成：{output_path}")
         print(f"✅ 明细报告已生成：{detail_path}")
-    except PermissionError as e:
-        print(f"\n⚠️ 无法写入 iCloud 报告: {e}")
-
-    # 始终写入本地副本（多日分析只读本地，不碰 iCloud）
-    try:
-        local_output = output_path.replace(DAILY_REPORT_DIR, LOCAL_DAILY_REPORT_DIR).replace(MULTI_DAY_REPORT_DIR, LOCAL_MULTI_DAY_REPORT_DIR)
-        local_detail = local_output.replace('.md', '_detail.md')
-        os.makedirs(os.path.dirname(local_output), exist_ok=True)
-        with open(local_output, 'w', encoding='utf-8') as f:
-            f.write(main_content)
-        with open(local_detail, 'w', encoding='utf-8') as f:
-            f.write(detail_content)
-        print(f"✅ 本地副本已生成：{local_output}")
     except Exception as e:
-        print(f"⚠️ 写入本地副本失败: {e}")
+        print(f"⚠️ 写入报告失败: {e}")
 
-    # 追加到报告索引（供多日分析使用）
-    if icloud_ok:
-        append_report_index(os.path.basename(output_path))
+    # iCloud 备份
+    try:
+        icloud_out = output_path.replace(LOCAL_DAILY_REPORT_DIR, DAILY_REPORT_DIR).replace(LOCAL_MULTI_DAY_REPORT_DIR, MULTI_DAY_REPORT_DIR)
+        icloud_detail = icloud_out.replace('.md', '_detail.md')
+        os.makedirs(os.path.dirname(icloud_out), exist_ok=True)
+        with open(icloud_out, 'w', encoding='utf-8') as f:
+            f.write(main_content)
+        with open(icloud_detail, 'w', encoding='utf-8') as f:
+            f.write(detail_content)
+    except Exception:
+        pass  # iCloud 备份失败不影响主流程
+
+    # 追加到报告索引
+    append_report_index(os.path.basename(output_path))
 
     return rating_counts
 
@@ -1854,22 +1852,22 @@ def main():
         args.output = f'stock_trend_report_{latest_date}.md'
         print(f"📅 报告使用数据日期：{latest_date}")
 
-    # 确保报告目录存在（基础目录 + 两个子目录）
+    # 确保本地 + iCloud 报告目录存在
+    os.makedirs(LOCAL_DAILY_REPORT_DIR, exist_ok=True)
+    os.makedirs(LOCAL_MULTI_DAY_REPORT_DIR, exist_ok=True)
     try:
-        for d in [BASE_REPORT_DIR, DAILY_REPORT_DIR, MULTI_DAY_REPORT_DIR]:
+        for d in [DAILY_REPORT_DIR, MULTI_DAY_REPORT_DIR]:
             if not os.path.exists(d):
                 os.makedirs(d)
-    except PermissionError as e:
-        print(f"❌ 无法创建报告目录: {e}")
-        print("   请检查 iCloud 同步状态或目录权限，然后重试")
-        return
+    except Exception:
+        pass  # iCloud 目录创建失败不影响本地
 
     # 数据已全部获取完毕，更新 top_list.md
     generate_top_list(input_path, top_list_path)
     sector_input_path = top_list_path
 
-    # 每日分析报告保存到"每日分析"子目录
-    output_path = os.path.join(DAILY_REPORT_DIR, args.output)
+    # 每日分析报告保存到本地 .stock_cache
+    output_path = os.path.join(LOCAL_DAILY_REPORT_DIR, args.output)
     rating_counts = generate_md_report(grouped_results, output_path, sector_input_path)
 
     # 终端打印进攻/防守标的占比（定义与多日分析报告一致）
@@ -1903,7 +1901,7 @@ def main():
             print(f"  - {name}")
 
         # 写入文件方便后续处理
-        not_found_path = os.path.join(BASE_REPORT_DIR, "not_found_stocks.txt")
+        not_found_path = os.path.join(CACHE_DIR, "not_found_stocks.txt")
         with open(not_found_path, 'w', encoding='utf-8') as f:
             f.write(f"# 未找到股票代码汇总\n")
             f.write(f"生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
@@ -2879,36 +2877,31 @@ def generate_multi_day_analysis(days_to_analyze: int = 10, input_md_path: str = 
 
     detail_content += "\n---\n\n*报告由股票趋势分析工具自动生成（基于每日报告汇总）*\n"
 
-    # 写入两个位置：iCloud + 本地
-    output_path = os.path.join(MULTI_DAY_REPORT_DIR, f'multi_day_trend_{latest_date}.md')
+    # 写入本地（主数据源）+ iCloud（备份）
+    output_path = os.path.join(LOCAL_MULTI_DAY_REPORT_DIR, f'multi_day_trend_{latest_date}.md')
     detail_path = output_path.replace('.md', '_detail.md')
-    icloud_ok = False
+    os.makedirs(LOCAL_MULTI_DAY_REPORT_DIR, exist_ok=True)
     try:
         with open(output_path, 'w', encoding='utf-8') as f:
             f.write(main_content)
         with open(detail_path, 'w', encoding='utf-8') as f:
             f.write(detail_content)
-        icloud_ok = True
         print(f"\n✅ 多日趋势汇总报告已生成：{output_path}")
         print(f"✅ 多日趋势明细报告已生成：{detail_path}")
-    except PermissionError as e:
-        print(f"\n⚠️ 无法写入 iCloud 报告: {e}")
-
-    # 始终写入本地副本
-    try:
-        local_output = os.path.join(LOCAL_MULTI_DAY_REPORT_DIR, f'multi_day_trend_{latest_date}.md')
-        local_detail = local_output.replace('.md', '_detail.md')
-        os.makedirs(LOCAL_MULTI_DAY_REPORT_DIR, exist_ok=True)
-        with open(local_output, 'w', encoding='utf-8') as f:
-            f.write(main_content)
-        with open(local_detail, 'w', encoding='utf-8') as f:
-            f.write(detail_content)
-        print(f"✅ 本地副本已生成：{local_output}")
     except Exception as e:
-        print(f"⚠️ 写入本地副本失败: {e}")
+        print(f"⚠️ 写入报告失败: {e}")
 
-    if icloud_ok:
-        append_report_index(os.path.basename(output_path))
+    # iCloud 备份
+    try:
+        icloud_out = output_path.replace(LOCAL_MULTI_DAY_REPORT_DIR, MULTI_DAY_REPORT_DIR)
+        icloud_detail = icloud_out.replace('.md', '_detail.md')
+        os.makedirs(MULTI_DAY_REPORT_DIR, exist_ok=True)
+        with open(icloud_out, 'w', encoding='utf-8') as f:
+            f.write(main_content)
+        with open(icloud_detail, 'w', encoding='utf-8') as f:
+            f.write(detail_content)
+    except Exception:
+        pass  # iCloud 备份失败不影响主流程
     print(f"   - 🚀启动：{len(startup_stocks)} 只 | 🟢连续强势：{len(strong_continuous)} 只 | 🟢今日转强：{len(strong_today)} 只")
     print(f"   - 🔴今日转跌：{len(weak_today)} 只 | 🔴持续风险：{len(risk_stocks)} 只 | 🟠震荡整理：{len(oscillation_stocks)} 只 | ⭐重点关注：{len(recovery_focus)} 只")
     if sorted_sectors:

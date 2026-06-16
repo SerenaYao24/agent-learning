@@ -23,11 +23,11 @@ CACHE_DIR = BASE_DIR / ".stock_cache"
 LOCAL_REPORT_DIR = CACHE_DIR / "reports"
 MULTI_DIR = LOCAL_REPORT_DIR / "多日分析"
 DAILY_DIR = LOCAL_REPORT_DIR / "每日分析"
-# iCloud 报告目录（写入用，与 stock_trend_analysis.py 一致）
-ICLOUD_BASE = Path.home() / "Library" / "Mobile Documents" / "com~apple~CloudDocs" / "Documents" / "股票分析结果"
-ICLOUD_FILTER_DIR = ICLOUD_BASE / "筛选结果"
 # 本地筛选结果目录
 LOCAL_FILTER_DIR = LOCAL_REPORT_DIR / "筛选结果"
+# iCloud 备份目录
+ICLOUD_BASE = Path.home() / "Library" / "Mobile Documents" / "com~apple~CloudDocs" / "Documents" / "股票分析结果"
+ICLOUD_FILTER_DIR = ICLOUD_BASE / "筛选结果"
 
 
 # ── 报告解析 ──────────────────────────────────────────────
@@ -479,24 +479,21 @@ def _write_filter_file(dir_path, filename, md_text):
 
 
 def save_filter_result(md_text, date_str):
-    """保存筛选结果到 iCloud + 本地，已存在则 append"""
+    """保存筛选结果到本地（主）+ iCloud（备份）"""
     filename = f"filter_{date_str}.md"
 
-    # iCloud 主路径（云端留存）
-    icloud_ok = False
-    try:
-        icloud_path = _write_filter_file(ICLOUD_FILTER_DIR, filename, md_text)
-        icloud_ok = True
-        print(f"✅ 已保存到 iCloud: {icloud_path}")
-    except PermissionError as e:
-        print(f"⚠️ 无法写入 iCloud: {e}")
-
-    # 本地副本（本地留存）
+    # 本地
     try:
         local_path = _write_filter_file(LOCAL_FILTER_DIR, filename, md_text)
         print(f"✅ 已保存到本地: {local_path}")
     except Exception as e:
-        print(f"⚠️ 写入本地副本失败: {e}")
+        print(f"⚠️ 写入本地失败: {e}")
+
+    # iCloud 备份
+    try:
+        _write_filter_file(ICLOUD_FILTER_DIR, filename, md_text)
+    except Exception:
+        pass  # iCloud 备份失败不影响主流程
 
 
 # ── 主交互 ──────────────────────────────────────────────

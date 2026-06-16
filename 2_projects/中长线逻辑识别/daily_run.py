@@ -5,6 +5,7 @@
 用法:
     python3 daily_run.py              # 全流程（涨停提醒 + 分析看板）
     python3 daily_run.py --analyze    # 仅分析+看板（最常用）
+    python3 daily_run.py --refresh    # 强制刷新，第一步忽略缓存重新拉取 API
 """
 
 import sys
@@ -15,6 +16,9 @@ if sys.version_info[0] < 3:
 print("⚠️  请确保已关闭 VPN，否则爬虫可能无法正常工作\n")
 
 import argparse
+import datetime
+import glob
+import re
 import subprocess
 import sys
 import os
@@ -34,6 +38,75 @@ STEPS = [
 ]
 
 
+# ── 清理逻辑 ──────────────────────────────────────────────
+
+CLEANUP_DIRS = [
+    ".stock_cache/reports/每日分析/",
+    ".stock_cache/reports/多日分析/",
+    ".stock_cache/reports/筛选结果/",
+    ".stock_cache/parse_cache/",
+    ".ma5_ranking/",
+    "filter/",
+]
+
+# 不同目录中的日期匹配模式（从文件名提取日期）
+DATE_PATTERNS = {
+    ".ma5_ranking/": re.compile(r'(\d{4}-\d{2}-\d{2})\.csv$'),
+}
+
+
+def get_all_file_dates(filepath):
+    """
+    Try to extract a date from a filename using known patterns.
+    Returns a datetime.date or None.
+    """
+    base = os.path.basename(filepath)
+    # Pattern: YYYY-MM-DD anywhere in filename
+    m = re.search(r'(\d{4}-\d{2}-\d{2})', base)
+    if m:
+        try:
+            return datetime.datetime.strptime(m.group(1), '%Y-%m-%d').date()
+        except ValueError:
+            pass
+    # Fallback: use file's mtime
+    try:
+        mtime = os.path.getmtime(filepath)
+        return datetime.datetime.fromtimestamp(mtime).date()
+    except OSError:
+        return None
+
+
+def cleanup_old_files(days=30):
+    """删除指定天数之前的报告、筛选结果、5日线排行文件"""
+    cutoff = datetime.date.today() - datetime.timedelta(days=days)
+    deleted = 0
+    skipped = 0
+
+    for rel_dir in CLEANUP_DIRS:
+        abs_dir = os.path.join(PROJECT_DIR, rel_dir)
+        if not os.path.isdir(abs_dir):
+            continue
+
+        for fname in os.listdir(abs_dir):
+            fpath = os.path.join(abs_dir, fname)
+            if not os.path.isfile(fpath):
+                continue
+
+            fdate = get_all_file_dates(fpath)
+            if fdate is None:
+                skipped += 1
+                continue
+
+            if fdate < cutoff:
+                try:
+                    os.remove(fpath)
+                    deleted += 1
+                except OSError as e:
+                    print(f"  ⚠ 删除失败: {fpath} — {e}")
+
+    print(f"  已删除 {deleted} 个旧文件（{days} 天前），跳过 {skipped} 个（无日期标记）")
+
+
 def run(cmd, cwd):
     """Run a command; returns (success: bool, output: str)."""
     r = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, encoding="utf-8", errors="replace")
@@ -43,7 +116,22 @@ def run(cmd, cwd):
 def main():
     parser = argparse.ArgumentParser(description="每日核心流程编排")
     parser.add_argument("--analyze", action="store_true", help="仅分析+看板，跳过涨停提醒")
+    parser.add_argument("--refresh", action="store_true", help="强制刷新：第一步忽略缓存重新拉取 API，后续步骤重新执行")
     args = parser.parse_args()
+
+    # ---- 强制刷新时，仅删除 OHLCV 缓存 ----
+    if args.refresh:
+        print("=" * 60)
+        print("  --refresh 模式：删除 OHLCV 缓存，强制重新拉取")
+        print("=" * 60)
+        cache_dir = os.path.join(PROJECT_DIR, ".stock_cache")
+        for fname in ["stock_data.json"]:
+            fpath = os.path.join(cache_dir, fname)
+            if os.path.exists(fpath):
+                os.remove(fpath)
+                print(f"  已删除缓存: {fname}")
+        print("  报告/排名/筛选等后续步骤自动重新生成，不删除")
+        print()
 
     t0 = time.time()
     ok = 0
@@ -63,6 +151,13 @@ def main():
         except (EOFError, KeyboardInterrupt):
             print("\n  已取消")
             sys.exit(0)
+
+    # ---- 清理旧文件 ----
+    print()
+    print("=" * 60)
+    print("  清理 30 天前的旧文件")
+    print("=" * 60)
+    cleanup_old_files(days=30)
 
     # ---- 分析+看板 ----
     print()
