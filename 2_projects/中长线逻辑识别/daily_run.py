@@ -25,6 +25,9 @@ import os
 import time
 
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
+YBJL_DIR = os.path.normpath(os.path.join(PROJECT_DIR, "../中报披露"))
+CNINFO_SCRIPT = os.path.expanduser("~/.codebuddy/skills/cninfo-yjyg-query/scripts/fetch_cninfo_announcements.py")
+YBJL_PORT = 8899
 
 STEPS = [
     ("自选股趋势分析", ["python3", "stock_trend_analysis.py", "-i", "interest_stock.md"]),
@@ -45,14 +48,9 @@ CLEANUP_DIRS = [
     ".stock_cache/reports/多日分析/",
     ".stock_cache/reports/筛选结果/",
     ".stock_cache/parse_cache/",
-    ".ma5_ranking/",
     "filter/",
 ]
 
-# 不同目录中的日期匹配模式（从文件名提取日期）
-DATE_PATTERNS = {
-    ".ma5_ranking/": re.compile(r'(\d{4}-\d{2}-\d{2})\.csv$'),
-}
 
 
 def get_all_file_dates(filepath):
@@ -78,6 +76,9 @@ def get_all_file_dates(filepath):
 
 def cleanup_old_files(days=30):
     """删除指定天数之前的报告、筛选结果、5日线排行文件"""
+    if days < 30:
+        print(f"  ⛔ 拒绝清理：days={days} < 30，不允许删除 30 天以内的文件")
+        return
     cutoff = datetime.date.today() - datetime.timedelta(days=days)
     deleted = 0
     skipped = 0
@@ -99,9 +100,9 @@ def cleanup_old_files(days=30):
 
             if fdate < cutoff:
                 try:
-                    os.remove(fpath)
+                    subprocess.run(["trash", fpath], capture_output=True, check=True)
                     deleted += 1
-                except OSError as e:
+                except Exception as e:
                     print(f"  ⚠ 删除失败: {fpath} — {e}")
 
     print(f"  已删除 {deleted} 个旧文件（{days} 天前），跳过 {skipped} 个（无日期标记）")
@@ -157,7 +158,7 @@ def main():
     print("=" * 60)
     print("  清理 30 天前的旧文件")
     print("=" * 60)
-    cleanup_old_files(days=30)
+    cleanup_old_files()
 
     # ---- 分析+看板 ----
     print()
@@ -183,7 +184,106 @@ def main():
     print(f"  完成: {ok} 成功, {fail} 失败, 耗时 {elapsed:.0f}s")
     print(f"{'=' * 60}")
 
-    # ---- 重启看板服务 ----
+    # ---- 中报披露数据获取 ----
+    print()
+    print("=" * 60)
+    print("  中报披露 · 业绩预告数据获取")
+    print("=" * 60)
+    print()
+
+    # 安装依赖
+    subprocess.run(["pip3", "install", "-q", "pypdf", "pdfplumber"], capture_output=True)
+
+    # 从现有 CSV 获取已有股票代码
+    csv_path = os.path.join(YBJL_DIR, "数据.csv")
+    existing_codes = []
+    if os.path.exists(csv_path):
+        try:
+            with open(csv_path, "r", encoding="utf-8") as f:
+                header = f.readline()
+                for line in f:
+                    # CSV format: 主题,子主题,公司,... -> stock code embedded in 公司 column
+                    cols = line.strip().split(",")
+                    if len(cols) >= 3:
+                        m = re.search(r'（(\d{6})）', cols[2])
+                        if m:
+                            existing_codes.append(m.group(1))
+        except Exception as e:
+            print(f"  ⚠ 读取CSV失败: {e}")
+
+    exclude_str = ",".join(existing_codes)
+    fetch_cmd = [
+        "python3", CNINFO_SCRIPT,
+        "2026年半年度业绩预告",
+    ]
+    if exclude_str:
+        fetch_cmd.extend(["--exclude", exclude_str])
+
+    print(f"  已有 {len(existing_codes)} 只股票，正在搜索新公告...")
+    success, output = run(fetch_cmd, YBJL_DIR)
+
+    # 解析 JSON 输出（脚本输出 JSON 到 stdout）
+    new_results = []
+    if success:
+        # 找到脚本的 JSON 输出（在 stderr 之后）
+        lines = output.splitlines()
+        json_start = -1
+        for i, line in enumerate(lines):
+            if line.strip().startswith("["):
+                json_start = i
+                break
+        if json_start >= 0:
+            try:
+                new_results = json.loads("\n".join(lines[json_start:]))
+            except json.JSONDecodeError:
+                pass
+
+    if new_results:
+        print(f"  ✓ 发现 {len(new_results)} 条新公告:")
+        for r in new_results:
+            print(f"    {r.get('stock_name','')}({r.get('stock_code','')}): {r.get('title','')[:30]}")
+        print()
+        print("  ⚠ 新公告数据已提取，需运行 /cninfo-yjyg-query skill 完成解析分类和入库")
+    else:
+        print("  ✓ 无新公告")
+
+    # ---- 启动中报披露看板服务 ----
+    print()
+    print(f"[*] 启动中报披露看板服务 (端口 {YBJL_PORT})...")
+    try:
+        result = subprocess.run(["lsof", "-ti:{}".format(YBJL_PORT)], capture_output=True, text=True)
+        pids = result.stdout.strip().split()
+        if pids:
+            for pid in pids:
+                print(f"  停掉旧进程 PID={pid}")
+                subprocess.run(["kill", pid], capture_output=True)
+            time.sleep(1)
+
+        log_path = os.path.join(YBJL_DIR, "server.log")
+        with open(log_path, "w") as log_file:
+            subprocess.Popen(
+                ["python3", "-m", "http.server", str(YBJL_PORT)],
+                cwd=YBJL_DIR,
+                stdout=log_file,
+                stderr=subprocess.STDOUT,
+                start_new_session=True,
+            )
+        time.sleep(1.5)
+
+        check = subprocess.run(["lsof", "-ti:{}".format(YBJL_PORT)], capture_output=True, text=True)
+        if check.stdout.strip():
+            print(f"  ✓ 中报披露看板已启动 (http://localhost:{YBJL_PORT})")
+        else:
+            print(f"  ⚠ 启动验证失败，查看日志: {log_path}")
+    except Exception as e:
+        print(f"  ⚠ 启动中报披露看板失败: {e}")
+
+    # ---- 打开中报披露看板 ----
+    print()
+    subprocess.run(["open", "http://localhost:{}/index.html".format(YBJL_PORT)])
+    print("  ✓ 已在中报披露看板")
+
+    # ---- 重启主看板服务 ----
     print()
     print("[*] 重启看板服务 (dashboard_server.py)...")
     try:

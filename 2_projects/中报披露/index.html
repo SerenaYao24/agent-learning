@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>中报披露 · 业绩预告看板</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fira+Sans:wght@300;400;500;600;700&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 14px; }
+body {
+  font-family: 'Fira Sans', system-ui, -apple-system, sans-serif;
+  background: #F8FAFC;
+  color: #1E293B;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Header */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(135deg, #1E40AF 0%, #3B82F6 100%);
+  color: #fff;
+  padding: 1.25rem 2rem;
+  flex-shrink: 0;
+  box-shadow: 0 2px 12px rgba(30,64,175,0.2);
+}
+.header-left h1 {
+  font-size: 1.35rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.header-left .sub {
+  font-size: 0.8rem;
+  opacity: 0.7;
+  margin-top: 0.2rem;
+  font-weight: 300;
+}
+.insight-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 500;
+  padding: 0.45rem 0.9rem;
+  border: 1px solid rgba(255,255,255,0.3);
+  border-radius: 6px;
+  background: rgba(255,255,255,0.1);
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.2s;
+  white-space: nowrap;
+}
+.insight-btn:hover { background: rgba(255,255,255,0.2); }
+.insight-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+/* Tabs */
+.tab-bar {
+  display: flex;
+  gap: 0;
+  padding: 0 2rem;
+  background: #fff;
+  border-bottom: 1px solid #E2E8F0;
+  flex-shrink: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.tab-btn {
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 500;
+  padding: 0.75rem 1.25rem;
+  border: none;
+  background: transparent;
+  color: #64748B;
+  cursor: pointer;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+  transition: color 0.2s, border-color 0.2s;
+}
+.tab-btn:hover { color: #1E40AF; }
+.tab-btn.active {
+  color: #1E40AF;
+  border-bottom-color: #1E40AF;
+  font-weight: 600;
+}
+.tab-count {
+  display: inline-block;
+  font-size: 0.7rem;
+  background: #E2E8F0;
+  color: #475569;
+  border-radius: 10px;
+  padding: 0.05rem 0.5rem;
+  margin-left: 0.4rem;
+  vertical-align: middle;
+}
+.tab-btn.active .tab-count {
+  background: #DBEAFE;
+  color: #1E40AF;
+}
+
+/* Filter bar */
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 2rem;
+  background: #fff;
+  border-bottom: 1px solid #E2E8F0;
+  flex-shrink: 0;
+}
+.filter-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  color: #475569;
+  cursor: pointer;
+  user-select: none;
+}
+.filter-toggle input[type="checkbox"] {
+  appearance: none;
+  width: 32px; height: 18px;
+  border-radius: 10px;
+  background: #CBD5E1;
+  position: relative;
+  cursor: pointer;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+.filter-toggle input[type="checkbox"]::after {
+  content: '';
+  position: absolute;
+  top: 2px; left: 2px;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.2s;
+}
+.filter-toggle input[type="checkbox"]:checked {
+  background: #1E40AF;
+}
+.filter-toggle input[type="checkbox"]:checked::after {
+  transform: translateX(14px);
+}
+.filter-info {
+  font-size: 0.72rem;
+  color: #94A3B8;
+}
+.filter-active .tr-old { display: none; }
+
+/* Content panel (tab-bar + filter-bar + main) */
+.content-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: flex 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.split-mode .content-panel {
+  flex: 0 0 50vh;
+}
+
+/* Main content area - the only scrollable part */
+.main {
+  flex: 1;
+  overflow-y: auto;
+  max-width: 1440px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 1.5rem 2rem;
+}
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* Sub-category section */
+.sub-section { margin-bottom: 2rem; }
+.sub-heading {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid #E2E8F0;
+}
+.sub-heading:first-child { margin-top: 0; }
+
+/* Table */
+.table-wrapper {
+  overflow-x: auto;
+  border-radius: 8px;
+  border: 1px solid #E2E8F0;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+thead th {
+  background: #F1F5F9;
+  color: #475569;
+  font-weight: 600;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.7rem 0.6rem;
+  text-align: center;
+  border-bottom: 2px solid #E2E8F0;
+  position: sticky;
+  top: 0;
+}
+thead th:first-child { text-align: left; padding-left: 1rem; }
+thead th:last-child { padding-right: 1rem; }
+tbody tr {
+  transition: background 0.15s;
+  cursor: pointer;
+}
+tbody tr:hover { background: #F8FAFC; }
+tbody tr.new-row {
+  background: #EFF6FF;
+}
+tbody tr.new-row:hover { background: #DBEAFE; }
+tbody td {
+  padding: 0.6rem;
+  text-align: center;
+  border-bottom: 1px solid #F1F5F9;
+  vertical-align: middle;
+}
+tbody td:first-child {
+  text-align: left;
+  padding-left: 1rem;
+  font-weight: 500;
+  color: #1E293B;
+}
+tbody td:last-child { padding-right: 1rem; }
+
+/* Company cell */
+.company-cell { display: flex; flex-direction: column; gap: 0.05rem; }
+.company-name { font-weight: 600; color: #1E293B; }
+.company-mcap { font-size: 0.65rem; color: #94A3B8; font-weight: 400; }
+
+/* Direction indicators */
+.indicator-up { color: #DC2626; font-weight: 600; }
+.indicator-down { color: #059669; font-weight: 600; }
+
+/* Cell highlights */
+.cell-positive { color: #DC2626; font-weight: 500; }
+.cell-negative { color: #059669; font-weight: 500; }
+.cell-neutral { color: #64748B; }
+
+/* Tags */
+.tag-new {
+  display: inline-block;
+  font-size: 0.6rem;
+  font-weight: 600;
+  background: #DBEAFE;
+  color: #1E40AF;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Reason + Opinion tooltip columns */
+.td-text {
+  max-width: 220px;
+  white-space: normal;
+  text-align: left;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: #475569;
+}
+.td-text .label {
+  font-weight: 600;
+  color: #1E293B;
+}
+
+/* Empty state */
+.empty-state {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: #94A3B8;
+}
+.empty-state svg { width: 48px; height: 48px; margin-bottom: 1rem; opacity: 0.4; }
+.empty-state p { font-size: 0.85rem; }
+
+/* Loading */
+.loading {
+  text-align: center;
+  padding: 4rem 1rem;
+  color: #94A3B8;
+}
+.spinner {
+  width: 32px; height: 32px;
+  border: 3px solid #E2E8F0;
+  border-top-color: #1E40AF;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  margin: 0 auto 1rem;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Error */
+.error-msg {
+  text-align: center;
+  padding: 2rem;
+  color: #DC2626;
+  background: #FEF2F2;
+  border-radius: 8px;
+  border: 1px solid #FECACA;
+}
+
+/* ── Split panels ── */
+.split-mode .content-panel {
+  flex: 0 0 50vh;
+}
+
+.insight-panel {
+  flex: 0 0 0;
+  overflow: hidden;
+  background: #fff;
+  border-top: 1px solid #E2E8F0;
+  display: flex;
+  flex-direction: column;
+  transition: flex 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.split-mode .insight-panel {
+  flex: 1;
+}
+
+.insight-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.6rem 1.5rem;
+  border-bottom: 1px solid #E2E8F0;
+  flex-shrink: 0;
+}
+.insight-header h3 {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #1E293B;
+}
+.insight-close {
+  width: 28px; height: 28px;
+  border: none;
+  background: #F1F5F9;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748B;
+  transition: background 0.15s;
+}
+.insight-close:hover { background: #E2E8F0; }
+
+.insight-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* Left: notes list */
+.insight-left {
+  width: 50%;
+  border-right: 1px solid #E2E8F0;
+  overflow-y: auto;
+  padding: 0.5rem 0;
+  background: #FAFBFC;
+}
+.note-item {
+  padding: 0.6rem 1rem;
+  cursor: pointer;
+  border-bottom: 1px solid #F1F5F9;
+  transition: background 0.15s;
+}
+.note-item:hover { background: #EFF6FF; }
+.note-item.active { background: #DBEAFE; }
+.note-item-title {
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: #1E293B;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.note-item-title p { margin: 0; display: inline; }
+.note-item-title h4, .note-item-title h5 { font-size: inherit; margin: 0; display: inline; }
+.note-item-title ul, .note-item-title ol { margin: 0; padding-left: 1.2em; }
+.note-item-title li { line-height: 1.4; }
+.note-item-title strong { font-weight: 600; }
+.note-item-title em { font-style: italic; }
+.note-item-title s { text-decoration: line-through; }
+.note-item-title u { text-decoration: underline; }
+.note-item-time {
+  font-size: 0.64rem;
+  color: #94A3B8;
+  margin-top: 0.15rem;
+}
+.delete-note {
+  float: right;
+  border: none;
+  background: transparent;
+  color: #CBD5E1;
+  cursor: pointer;
+  font-size: 0.7rem;
+  padding: 0.1rem 0.3rem;
+  border-radius: 4px;
+}
+.delete-note:hover { color: #DC2626; background: #FEF2F2; }
+
+/* Right: editor */
+.insight-right {
+  width: 50%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.editor-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.4rem 1rem;
+  border-bottom: 1px solid #E2E8F0;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+.editor-toolbar button {
+  font-family: inherit;
+  font-size: 0.72rem;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: #475569;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.editor-toolbar button:hover { background: #F1F5F9; }
+.editor-toolbar button.active { background: #DBEAFE; color: #1E40AF; }
+.editor-toolbar .sep {
+  width: 1px; height: 16px;
+  background: #E2E8F0;
+  margin: 0 0.3rem;
+}
+.editor-content {
+  flex: 1;
+  padding: 1rem;
+  overflow-y: auto;
+  font-size: 0.82rem;
+  line-height: 1.6;
+  color: #1E293B;
+  outline: none;
+}
+.editor-content:empty::before {
+  content: '输入你的分析笔记...';
+  color: #94A3B8;
+  font-style: italic;
+}
+.editor-actions {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.6rem 1rem;
+  border-top: 1px solid #E2E8F0;
+  flex-shrink: 0;
+}
+.editor-actions button {
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 500;
+  padding: 0.4rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-save {
+  background: #1E40AF;
+  color: #fff;
+  border: none;
+}
+.btn-save:hover { background: #1E3A8A; }
+.btn-new {
+  background: transparent;
+  color: #475569;
+  border: 1px solid #E2E8F0;
+}
+.btn-new:hover { background: #F1F5F9; }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .header { padding: 1rem; }
+  .header h1 { font-size: 1.1rem; }
+  .tab-bar { padding: 0 1rem; }
+  .tab-btn { font-size: 0.75rem; padding: 0.6rem 0.8rem; }
+  .main { padding: 1rem; }
+  table { font-size: 0.7rem; }
+  thead th, tbody td { padding: 0.45rem 0.35rem; }
+  .td-text { max-width: 140px; }
+  .insight-body { flex-direction: column; }
+  .insight-left { width: 100%; height: 40%; border-right: none; border-bottom: 1px solid #E2E8F0; }
+  .insight-right { width: 100%; height: 60%; }
+}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-left">
+    <h1>中报披露 · 半年度业绩预告看板</h1>
+    <div class="sub">数据来源：巨潮资讯网 · 更新于 2026-06-19</div>
+  </div>
+  <button class="insight-btn" id="insightBtn">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+    Insight
+  </button>
+</header>
+
+<div class="content-panel" id="contentPanel">
+  <nav class="tab-bar" id="tabBar"></nav>
+
+  <div class="filter-bar">
+    <label class="filter-toggle">
+      <input type="checkbox" id="filterNew">
+      <span>仅显示最新披露</span>
+    </label>
+    <span class="filter-info" id="filterInfo"></span>
+  </div>
+
+  <main class="main" id="mainContent">
+    <div class="loading" id="loadingState">
+      <div class="spinner"></div>
+      <p>加载数据中...</p>
+    </div>
+    <div class="error-msg" id="errorState" style="display:none"></div>
+  </main>
+</div>
+
+<div class="insight-panel" id="insightPanel">
+  <div class="insight-header">
+    <h3>研究笔记</h3>
+    <button class="insight-close" id="insightClose">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="insight-body">
+    <div class="insight-left" id="notesList"></div>
+    <div class="insight-right">
+      <div class="editor-toolbar">
+        <button data-cmd="bold" title="粗体"><strong>B</strong></button>
+        <button data-cmd="italic" title="斜体"><em>I</em></button>
+        <button data-cmd="underline" title="下划线"><u>U</u></button>
+        <button data-cmd="strikeThrough" title="删除线"><s>S</s></button>
+        <span class="sep"></span>
+        <button data-cmd="formatBlock" data-val="h4" title="标题">H</button>
+        <button data-cmd="formatBlock" data-val="p" title="正文">P</button>
+        <span class="sep"></span>
+        <button data-cmd="insertUnorderedList" title="列表">☰</button>
+        <button data-cmd="insertOrderedList" title="编号">#</button>
+        <span class="sep"></span>
+        <button data-cmd="removeFormat" title="清除格式">✕</button>
+      </div>
+      <div class="editor-content" id="editor" contenteditable></div>
+      <div class="editor-actions">
+        <button class="btn-new" id="newNoteBtn">新建</button>
+        <button class="btn-save" id="saveNoteBtn">保存笔记</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(async function() {
+  const CSV_PATH = '数据.csv';
+
+  // ── Parse CSV ──
+  function parseCSV(text) {
+    const lines = [];
+    let current = '', inQuote = false;
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i];
+      if (ch === '"') { inQuote = !inQuote; continue; }
+      if (ch === '\n' && !inQuote) { lines.push(current); current = ''; continue; }
+      current += ch;
+    }
+    if (current.trim()) lines.push(current);
+
+    const headers = lines[0].split(',').map(h => h.trim());
+    const rows = [];
+    for (let i = 1; i < lines.length; i++) {
+      if (!lines[i].trim()) continue;
+      const vals = [];
+      let f = '', fq = false;
+      for (let j = 0; j < lines[i].length; j++) {
+        const ch = lines[i][j];
+        if (ch === '"') { fq = !fq; continue; }
+        if (ch === ',' && !fq) { vals.push(f.trim()); f = ''; continue; }
+        f += ch;
+      }
+      vals.push(f.trim());
+      const row = {};
+      headers.forEach((h, idx) => { row[h] = vals[idx] || ''; });
+      rows.push(row);
+    }
+    return rows;
+  }
+
+  // ── Helpers ──
+  function esc(s) {
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  function dirIcon(status) {
+    if (!status) return '';
+    const s = status.trim();
+    if (s.includes('扭亏') || s.includes('上升') || s.includes('预增') || s.includes('大幅上升')) return '<span class="indicator-up">▲</span>';
+    if (s.includes('下降') || s.includes('预减') || s.includes('亏损')) return '<span class="indicator-down">▼</span>';
+    return '';
+  }
+
+  function valClass(v) {
+    const s = String(v).trim();
+    if (s.startsWith('+')) return 'cell-positive';
+    if (s.startsWith('-') && !s.includes('亏损') && !s.includes('扭亏')) return 'cell-negative';
+    if (s.startsWith('亏损')) return 'cell-negative';
+    return 'cell-neutral';
+  }
+
+  function formatPct(v) {
+    if (!v || v === '-') return '<span class="cell-neutral">-</span>';
+    return `<span class="${valClass(v)}">${esc(v)}</span>`;
+  }
+
+  // ── Render ──
+  function renderApp(data) {
+    // Group by 主题
+    const groups = {};
+    data.forEach(row => {
+      const theme = row['主题'] || '其他产业链';
+      if (!groups[theme]) groups[theme] = {};
+      const sub = row['子主题'] || '';
+      if (!groups[theme][sub]) groups[theme][sub] = [];
+      groups[theme][sub].push(row);
+    });
+
+    const themeOrder = Object.keys(groups);
+    const tabBar = document.getElementById('tabBar');
+    const main = document.getElementById('mainContent');
+
+    // Clear loading
+    main.innerHTML = '';
+
+    // Build tabs
+    themeOrder.forEach((theme, idx) => {
+      const btn = document.createElement('button');
+      btn.className = 'tab-btn' + (idx === 0 ? ' active' : '');
+      const cnt = Object.values(groups[theme]).reduce((s, arr) => s + arr.length, 0);
+      btn.innerHTML = `${esc(theme.replace(/（.*?）/,''))} <span class="tab-count">${cnt}</span>`;
+      btn.dataset.idx = idx;
+      btn.addEventListener('click', () => switchTab(idx));
+      tabBar.appendChild(btn);
+    });
+
+    // Build content panels
+    themeOrder.forEach((theme, idx) => {
+      const panel = document.createElement('div');
+      panel.className = 'tab-content' + (idx === 0 ? ' active' : '');
+      panel.dataset.idx = idx;
+
+      const subs = groups[theme];
+      const subKeys = Object.keys(subs).sort();
+
+      subKeys.forEach(sub => {
+        const rows = subs[sub];
+        const section = document.createElement('div');
+        section.className = 'sub-section';
+
+        if (sub) {
+          const h = document.createElement('div');
+          h.className = 'sub-heading';
+          h.textContent = sub;
+          section.appendChild(h);
+        }
+
+        const wrap = document.createElement('div');
+        wrap.className = 'table-wrapper';
+
+        const table = document.createElement('table');
+        // Header
+        const thead = document.createElement('thead');
+        const thr = document.createElement('tr');
+        ['公司','业绩','归母同比','归母环比','归母上年(亿)','扣非同比','扣非环比','扣非上年(亿)','原因','舆论','最新'].forEach(h => {
+          const th = document.createElement('th');
+          th.textContent = h;
+          thr.appendChild(th);
+        });
+        thead.appendChild(thr);
+        table.appendChild(thead);
+
+        // Body
+        const tbody = document.createElement('tbody');
+        rows.forEach(r => {
+          const tr = document.createElement('tr');
+          if (r['是否最新'] === '最新披露') tr.className = 'new-row';
+
+          const isNew = r['是否最新'] === '最新披露';
+          if (!isNew) tr.classList.add('tr-old');
+
+          // 公司
+          const nameMatch = r['公司'] || '';
+          const mcapMatch = nameMatch.match(/~(\S+)/);
+          const cleanName = nameMatch.replace(/~\S+$/, '').trim();
+
+          // 业绩
+          const perfStr = r['业绩'] || '';
+          const perfClean = perfStr.replace(/[🟢🔴]/g, '').trim();
+
+          const cells = [
+            // 公司
+            `<div class="company-cell"><span class="company-name">${esc(cleanName)}</span>${mcapMatch ? `<span class="company-mcap">市值 ${esc(mcapMatch[1])}</span>` : ''}</div>`,
+            // 业绩
+            `${dirIcon(perfStr)} ${esc(perfClean)}`,
+            // 归母同比/环比/上年
+            formatPct(r['归母同比']), formatPct(r['归母环比']), `<span class="${valClass(r['归母上年同期(亿)'])}">${esc(r['归母上年同期(亿)']||'-')}</span>`,
+            formatPct(r['扣非同比']), formatPct(r['扣非环比']), `<span class="${valClass(r['扣非上年同期(亿)'])}">${esc(r['扣非上年同期(亿)']||'-')}</span>`,
+            // 原因
+            `<div class="td-text">${esc(r['原因']||'')}</div>`,
+            // 舆论
+            `<div class="td-text">${esc(r['舆论']||'')}</div>`,
+            // 最新
+            isNew ? '<span class="tag-new">最新</span>' : '',
+          ];
+
+          cells.forEach(c => {
+            const td = document.createElement('td');
+            td.innerHTML = c;
+            tr.appendChild(td);
+          });
+          tbody.appendChild(tr);
+        });
+        table.appendChild(tbody);
+        wrap.appendChild(table);
+        section.appendChild(wrap);
+        panel.appendChild(section);
+
+        // spacer
+        panel.appendChild(document.createElement('br'));
+      });
+
+      main.appendChild(panel);
+    });
+  }
+
+  function switchTab(idx) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-btn')[idx].classList.add('active');
+    document.querySelectorAll('.tab-content').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-content')[idx].classList.add('active');
+    updateFilterInfo();
+  }
+
+  // ── Filter logic ──
+  function updateFilterInfo() {
+    const activePanel = document.querySelector('.tab-content.active');
+    if (!activePanel) return;
+    const total = activePanel.querySelectorAll('tbody tr').length;
+    const newRows = activePanel.querySelectorAll('tbody tr.new-row').length;
+    const info = document.getElementById('filterInfo');
+    info.textContent = `共 ${total} 条 · ${newRows} 条最新`;
+  }
+
+  document.getElementById('filterNew').addEventListener('change', function() {
+    const active = document.querySelector('.tab-content.active');
+    if (!active) return;
+    if (this.checked) {
+      active.closest('.main')?.classList.add('filter-active');
+    } else {
+      active.closest('.main')?.classList.remove('filter-active');
+    }
+    updateFilterInfo();
+  });
+
+  // Observe tab switches to maintain filter state
+  const origSwitch = switchTab;
+  switchTab = function(idx) {
+    // re-apply filter to the panel that's about to show
+    document.querySelectorAll('.tab-content').forEach((p, i) => {
+      const isActive = i === idx;
+      const cb = document.getElementById('filterNew');
+      if (isActive && cb.checked) {
+        p.closest('.main')?.classList.add('filter-active');
+      } else if (isActive) {
+        p.closest('.main')?.classList.remove('filter-active');
+      }
+    });
+    origSwitch(idx);
+  };
+
+  // ── Insight Panel ──
+  const STORAGE_KEY = 'cninfo_notes';
+  let notes = [];
+  let currentNoteId = null;
+
+  function loadNotes() {
+    try { notes = JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; } catch(e) { notes = []; }
+  }
+  function saveNotes() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
+  }
+  function renderNotesList() {
+    const el = document.getElementById('notesList');
+    if (!notes.length) {
+      el.innerHTML = '<div style="text-align:center;padding:2rem 1rem;color:#94A3B8;font-size:0.78rem;">暂无笔记</div>';
+      return;
+    }
+    el.innerHTML = notes.map(n => {
+      // Render rich text preview (truncated)
+      const preview = n.content;
+      return `<div class="note-item${n.id === currentNoteId ? ' active' : ''}" data-id="${n.id}">
+        <button class="delete-note" data-id="${n.id}">✕</button>
+        <div class="note-item-title">${preview || '无标题'}</div>
+        <div class="note-item-time">${n.time}</div>
+      </div>`;
+    }).join('');
+    el.querySelectorAll('.note-item').forEach(item => {
+      item.addEventListener('click', (e) => {
+        if (e.target.closest('.delete-note')) return;
+        const id = item.dataset.id;
+        openNote(id);
+      });
+    });
+    el.querySelectorAll('.delete-note').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = btn.dataset.id;
+        notes = notes.filter(n => n.id !== id);
+        if (currentNoteId === id) { currentNoteId = null; clearEditor(); }
+        saveNotes();
+        renderNotesList();
+      });
+    });
+  }
+  function openNote(id) {
+    const note = notes.find(n => n.id === id);
+    if (!note) return;
+    currentNoteId = id;
+    document.getElementById('editor').innerHTML = note.content;
+    renderNotesList();
+  }
+  function clearEditor() {
+    document.getElementById('editor').innerHTML = '';
+    currentNoteId = null;
+  }
+  function getCurrentEditorContent() {
+    return document.getElementById('editor').innerHTML;
+  }
+
+  // Toggle split mode
+  document.getElementById('insightBtn').addEventListener('click', () => {
+    document.body.classList.add('split-mode');
+    loadNotes();
+    renderNotesList();
+  });
+  document.getElementById('insightClose').addEventListener('click', () => {
+    document.body.classList.remove('split-mode');
+  });
+
+  // Save note
+  document.getElementById('saveNoteBtn').addEventListener('click', () => {
+    const content = getCurrentEditorContent();
+    if (!content.trim()) return;
+    loadNotes();
+    const now = new Date();
+    const timeStr = now.toLocaleString('zh-CN', {hour12:false});
+    if (currentNoteId) {
+      const idx = notes.findIndex(n => n.id === currentNoteId);
+      if (idx >= 0) {
+        notes[idx].content = content;
+        notes[idx].time = timeStr;
+        notes[idx].title = content.replace(/<[^>]*>/g,'').slice(0,30);
+      }
+    } else {
+      notes.unshift({
+        id: Date.now().toString(36),
+        content: content,
+        time: timeStr,
+        title: content.replace(/<[^>]*>/g,'').slice(0,30),
+      });
+      currentNoteId = notes[0].id;
+    }
+    saveNotes();
+    renderNotesList();
+  });
+
+  // New note
+  document.getElementById('newNoteBtn').addEventListener('click', () => {
+    currentNoteId = null;
+    clearEditor();
+    renderNotesList();
+    document.getElementById('editor').focus();
+  });
+
+  // Toolbar commands
+  document.querySelectorAll('.editor-toolbar button[data-cmd]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const cmd = btn.dataset.cmd;
+      const val = btn.dataset.val || null;
+      document.execCommand(cmd, false, val);
+      document.getElementById('editor').focus();
+    });
+  });
+
+  // ── Load CSV ──
+  try {
+    const resp = await fetch(CSV_PATH);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
+    const text = await resp.text();
+    const data = parseCSV(text);
+    if (data.length === 0) throw new Error('CSV 为空');
+    renderApp(data);
+  } catch (err) {
+    document.getElementById('loadingState').style.display = 'none';
+    const errEl = document.getElementById('errorState');
+    errEl.style.display = 'block';
+    errEl.innerHTML = `<strong>加载失败</strong><br>${esc(err.message)}<br><br>请确保通过 HTTP 服务访问（而非直接打开文件），且 数据.csv 在同一目录下。`;
+  }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Builders Digest</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 14px; scroll-behavior: smooth; }
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background: #ffffff;
+  color: #1e293b;
+  min-height: 100vh;
+  line-height: 1.6;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #f1f5f9; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+
+/* Header */
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid #e2e8f0;
+  padding: 1rem 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.logo {
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(135deg, #2563eb, #16a34a);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.header h1 {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+}
+
+.header-subtitle {
+  font-size: 0.78rem;
+  color: #64748b;
+  font-weight: 400;
+}
+
+/* Filter Controls */
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.filter-group label {
+  font-size: 0.78rem;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.filter-group input[type="date"] {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 0.4rem 0.6rem;
+  color: #1e293b;
+  font-size: 0.82rem;
+  font-family: 'Inter', sans-serif;
+  outline: none;
+  transition: border-color 0.2s;
+  width: 140px;
+}
+
+.filter-group input[type="date"]:focus {
+  border-color: #2563eb;
+}
+
+.filter-group input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+}
+
+.date-select {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 0.4rem 2rem 0.4rem 0.6rem;
+  color: #1e293b;
+  font-size: 0.82rem;
+  font-family: 'Inter', sans-serif;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.2s;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='%2394a3b8'%3E%3Cpath d='M0 0l5 6 5-6z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  min-width: 180px;
+}
+
+.date-select:focus {
+  border-color: #2563eb;
+}
+
+/* Stats */
+.stats-row {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem 2rem;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  flex-wrap: wrap;
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+}
+
+.stat-item .stat-value {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.stat-item .stat-label {
+  color: #64748b;
+}
+
+.stat-divider {
+  width: 1px;
+  height: 16px;
+  background: #e2e8f0;
+}
+
+/* Main Content */
+.main-content {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 4rem;
+}
+
+.digest-date-header {
+  font-size: 0.85rem;
+  color: #64748b;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  padding: 0 0.5rem;
+}
+
+.digest-date-badge {
+  display: inline-block;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  padding: 0.25rem 0.8rem;
+  font-size: 0.78rem;
+  color: #2563eb;
+  margin-bottom: 1.5rem;
+}
+
+/* Section Headers */
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 2rem 0 1rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.section-header .section-icon {
+  font-size: 1.1rem;
+}
+
+.section-header h2 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #0f172a;
+  letter-spacing: -0.01em;
+}
+
+.section-header .section-count {
+  font-size: 0.75rem;
+  color: #64748b;
+  background: #f1f5f9;
+  border-radius: 10px;
+  padding: 0.1rem 0.5rem;
+}
+
+/* Item Cards */
+.item-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.item-card:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+}
+
+.item-card.podcast {
+  border-left: 3px solid #16a34a;
+}
+
+.item-card.twitter {
+  border-left: 3px solid #2563eb;
+}
+
+.item-card.blog {
+  border-left: 3px solid #ca8a04;
+}
+
+.item-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.item-type-badge {
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+}
+
+.item-type-badge.twitter {
+  background: rgba(37, 99, 235, 0.08);
+  color: #2563eb;
+}
+
+.item-type-badge.podcast {
+  background: rgba(22, 163, 74, 0.08);
+  color: #16a34a;
+}
+
+.item-type-badge.blog {
+  background: rgba(202, 138, 4, 0.08);
+  color: #ca8a04;
+}
+
+.item-date {
+  font-size: 0.72rem;
+  color: #94a3b8;
+}
+
+.item-author {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.author-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #e2e8f0, #f1f5f9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #2563eb;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.author-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.author-info .author-name {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.author-info .author-bio {
+  font-size: 0.75rem;
+  color: #64748b;
+  line-height: 1.3;
+}
+
+.author-info .author-handle {
+  font-size: 0.72rem;
+  color: #94a3b8;
+}
+
+/* Podcast Title */
+.podcast-title {
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: #2563eb;
+  margin-bottom: 0.5rem;
+}
+
+/* Content */
+.content-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.lang-block {
+  position: relative;
+}
+
+.lang-tag {
+  display: inline-block;
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #94a3b8;
+  margin-bottom: 0.3rem;
+}
+
+.lang-block p {
+  font-size: 0.88rem;
+  line-height: 1.7;
+  color: #334155;
+  white-space: pre-wrap;
+}
+
+.lang-block p em {
+  color: #2563eb;
+  font-style: italic;
+}
+
+.lang-block p strong {
+  color: #0f172a;
+}
+
+/* URL Links */
+.item-urls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.6rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.item-urls a {
+  font-size: 0.75rem;
+  color: #2563eb;
+  text-decoration: none;
+  padding: 0.15rem 0.5rem;
+  background: rgba(37, 99, 235, 0.06);
+  border-radius: 4px;
+  transition: background 0.2s;
+  word-break: break-all;
+  max-width: 450px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.item-urls a:hover {
+  background: rgba(37, 99, 235, 0.12);
+  text-decoration: underline;
+}
+
+/* Quote */
+.quote-block {
+  margin: 0.5rem 0;
+  padding: 0.6rem 1rem;
+  border-left: 2px solid #e2e8f0;
+  background: rgba(0,0,0,0.02);
+  border-radius: 0 6px 6px 0;
+  font-size: 0.82rem;
+  color: #64748b;
+  font-style: italic;
+  line-height: 1.5;
+}
+
+/* Empty State */
+.empty-state {
+  text-align: center;
+  padding: 4rem 2rem;
+  color: #94a3b8;
+}
+
+.empty-state .empty-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  opacity: 0.5;
+}
+
+.empty-state p {
+  font-size: 0.95rem;
+}
+
+/* Loading */
+.loading {
+  text-align: center;
+  padding: 4rem 2rem;
+}
+
+.loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 2px solid #e2e8f0;
+  border-top-color: #2563eb;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto 1rem;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.loading p { color: #64748b; font-size: 0.88rem; }
+
+/* Footer */
+.footer {
+  text-align: center;
+  padding: 2rem;
+  font-size: 0.78rem;
+  color: #94a3b8;
+  border-top: 1px solid #e2e8f0;
+}
+
+.footer a {
+  color: #2563eb;
+  text-decoration: none;
+}
+
+/* Responsive */
+@media (max-width: 700px) {
+  .header { padding: 0.75rem 1rem; flex-direction: column; align-items: flex-start; }
+  .filter-bar { width: 100%; }
+  .filter-group input[type="date"] { width: 120px; }
+  .date-select { min-width: 140px; }
+  .main-content { padding: 1rem 0.75rem; }
+  .item-card { padding: 1rem; }
+  .item-urls a { max-width: 280px; }
+}
+
+/* Language toggle inline */
+.lang-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #e2e8f0, transparent);
+  margin: 0.4rem 0;
+}
+
+/* Podcast Takeaway */
+.takeaway-badge {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: rgba(22, 163, 74, 0.08);
+  color: #16a34a;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  margin-bottom: 0.5rem;
+}
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="header">
+  <div class="header-left">
+    <div class="logo">FB</div>
+    <div>
+      <h1>AI Builders Digest</h1>
+      <div class="header-subtitle">Track the builders, not the influencers</div>
+    </div>
+  </div>
+  <div class="filter-bar">
+    <div class="filter-group">
+      <label for="dateStart">从</label>
+      <input type="date" id="dateStart">
+    </div>
+    <div class="filter-group">
+      <label for="dateEnd">至</label>
+      <input type="date" id="dateEnd">
+    </div>
+    <div class="filter-group">
+      <select id="dateSelect" class="date-select">
+        <option value="">全部日期</option>
+      </select>
+    </div>
+  </div>
+</header>
+
+<!-- Stats -->
+<div class="stats-row" id="statsRow">
+  <div class="stat-item">
+    <span class="stat-value" id="statItems">-</span>
+    <span class="stat-label">条内容</span>
+  </div>
+  <div class="stat-divider"></div>
+  <div class="stat-item">
+    <span class="stat-value" id="statDates">-</span>
+    <span class="stat-label">个日期</span>
+  </div>
+  <div class="stat-divider"></div>
+  <div class="stat-item">
+    <span class="stat-value" id="statBuilders">-</span>
+    <span class="stat-label">位 Builder</span>
+  </div>
+  <div class="stat-divider"></div>
+  <div class="stat-item">
+    <span class="stat-value" id="statPodcasts">-</span>
+    <span class="stat-label">期播客</span>
+  </div>
+</div>
+
+<!-- Main -->
+<div class="main-content" id="mainContent">
+  <div class="loading">
+    <div class="loading-spinner"></div>
+    <p>正在加载数据…</p>
+  </div>
+</div>
+
+<footer class="footer">
+  Generated through the <a href="https://github.com/zarazhangrui/follow-builders" target="_blank">Follow Builders</a> skill
+</footer>
+
+<script>
+const DATA_DIR = './data/';
+
+// --- State ---
+let allData = [];
+
+// --- DOM refs ---
+const $main = document.getElementById('mainContent');
+const $dateStart = document.getElementById('dateStart');
+const $dateEnd = document.getElementById('dateEnd');
+const $dateSelect = document.getElementById('dateSelect');
+const $statItems = document.getElementById('statItems');
+const $statDates = document.getElementById('statDates');
+const $statBuilders = document.getElementById('statBuilders');
+const $statPodcasts = document.getElementById('statPodcasts');
+
+// --- File Discovery ---
+async function listJsonFiles() {
+  // Strategy 1: fetch _index.json (fast, reliable)
+  try {
+    const r = await fetch(DATA_DIR + '_index.json');
+    if (r.ok) return (await r.json()).files || [];
+  } catch (_) {}
+
+  // Strategy 2: directory listing (works with dev servers)
+  try {
+    const r = await fetch(DATA_DIR);
+    const text = await r.text();
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(text, 'text/html');
+    const links = [...doc.querySelectorAll('a')];
+    const files = links.map(a => a.getAttribute('href'))
+      .filter(h => h && h.endsWith('.json') && !h.startsWith('_') && !h.startsWith('.'));
+    if (files.length) return files;
+  } catch (_) {}
+
+  // Strategy 3: brute-force probe last 365 days via HEAD
+  const files = [];
+  const now = new Date();
+  for (let d = new Date(now); d >= new Date(now - 365*86400000); d.setDate(d.getDate()-1)) {
+    files.push(`follow_builders_${d.toISOString().slice(0,10)}.json`);
+  }
+  const probes = files.map(async (f) => {
+    try {
+      const r = await fetch(DATA_DIR + f, { method: 'HEAD' });
+      if (r.ok) return f;
+    } catch (_) {}
+    return null;
+  });
+  const results = await Promise.all(probes);
+  const existing = results.filter(Boolean);
+  if (existing.length) return existing;
+
+  return [];
+}
+
+// --- Load & Parse ---
+async function loadAllData() {
+  try {
+    const files = await listJsonFiles();
+    const promises = files.map(f => fetch(DATA_DIR + f).then(r => r.json()));
+    const results = await Promise.all(promises);
+    allData = results.map((r, i) => ({
+      filename: files[i],
+      date: r.digestDate || (r.generatedAt ? r.generatedAt.slice(0,10) : ''),
+      items: r.items || []
+    }));
+    allData.sort((a, b) => b.date.localeCompare(a.date));
+    populateDateSelect();
+    applyFilters();
+  } catch (e) {
+    $main.innerHTML = `<div class="empty-state"><div class="empty-icon">📭</div><p>暂无数据。请先通过 /ai 命令生成 digest。</p><p style="font-size:0.8rem;color:#94a3b8;margin-top:0.5rem;">${String(e)}</p></div>`;
+  }
+}
+
+// --- Populate dropdown ---
+function populateDateSelect() {
+  // Keep the "all" option
+  $dateSelect.innerHTML = '<option value="">全部日期</option>';
+  for (const d of allData) {
+    const opt = document.createElement('option');
+    opt.value = d.date;
+    opt.textContent = d.date;
+    $dateSelect.appendChild(opt);
+  }
+}
+
+// --- Filter ---
+function applyFilters() {
+  const startStr = $dateStart.value;
+  const endStr = $dateEnd.value;
+  const selDate = $dateSelect.value;
+  
+  let filtered = allData;
+  
+  if (selDate) {
+    filtered = filtered.filter(d => d.date === selDate);
+  } else {
+    if (startStr) filtered = filtered.filter(d => d.date >= startStr);
+    if (endStr) filtered = filtered.filter(d => d.date <= endStr);
+  }
+  
+  // Flatten items
+  let allItems = [];
+  for (const day of filtered) {
+    for (const item of day.items) {
+      allItems.push({ ...item, _digestDate: day.date });
+    }
+  }
+  
+  filteredData = allItems;
+  renderDigest(filtered, allItems);
+}
+
+// --- Render ---
+function renderDigest(days, items) {
+  // Stats
+  const twitterCount = items.filter(i => i.type === 'twitter').length;
+  const podcastCount = items.filter(i => i.type === 'podcast').length;
+  const blogCount = items.filter(i => i.type === 'blog').length;
+  const uniqueBuilders = new Set(items.filter(i => i.type === 'twitter').map(i => i.authorName)).size;
+  
+  $statItems.textContent = items.length;
+  $statDates.textContent = days.length;
+  $statBuilders.textContent = uniqueBuilders;
+  $statPodcasts.textContent = podcastCount;
+  
+  if (!items.length) {
+    $main.innerHTML = `<div class="empty-state"><div class="empty-icon">🔍</div><p>该时间范围内没有数据。</p></div>`;
+    return;
+  }
+  
+  let html = '';
+  
+  // Group by digest date
+  for (const day of days) {
+    html += `<div class="digest-date-badge">📅 ${day.date}</div>`;
+    
+    const dayItems = items.filter(i => i._digestDate === day.date);
+    
+    // Collect twitter items
+    const twItems = dayItems.filter(i => i.type === 'twitter');
+    if (twItems.length) {
+      html += `
+        <div class="section-header">
+          <span class="section-icon">🐦</span>
+          <h2>X / Twitter</h2>
+          <span class="section-count">${twItems.length}</span>
+        </div>
+      `;
+      for (const item of twItems) {
+        html += renderItemCard(item);
+      }
+    }
+    
+    // Collect blog items
+    const blogItems = dayItems.filter(i => i.type === 'blog');
+    if (blogItems.length) {
+      html += `
+        <div class="section-header">
+          <span class="section-icon">📝</span>
+          <h2>Blogs</h2>
+          <span class="section-count">${blogItems.length}</span>
+        </div>
+      `;
+      for (const item of blogItems) {
+        html += renderItemCard(item);
+      }
+    }
+    
+    // Collect podcast items
+    const podItems = dayItems.filter(i => i.type === 'podcast');
+    if (podItems.length) {
+      html += `
+        <div class="section-header">
+          <span class="section-icon">🎙️</span>
+          <h2>Podcasts</h2>
+          <span class="section-count">${podItems.length}</span>
+        </div>
+      `;
+      for (const item of podItems) {
+        html += renderItemCard(item);
+      }
+    }
+  }
+  
+  $main.innerHTML = html;
+}
+
+function renderItemCard(item) {
+  const type = item.type === 'podcast' ? 'podcast' : item.type === 'blog' ? 'blog' : 'twitter';
+  const typeLabel = item.type === 'podcast' ? '播客' : item.type === 'blog' ? '博客' : 'Twitter';
+  
+  const avatarLetter = item.authorName ? item.authorName.charAt(0).toUpperCase() : '?';
+  const publishedDate = item.publishedAt ? new Date(item.publishedAt).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' }) : '';
+  
+  const urlsHtml = (item.urls || []).map(u =>
+    `<a href="${u}" target="_blank" rel="noopener">${u}</a>`
+  ).join('');
+  
+  // Process content: convert markdown-style bold/italic to HTML
+  const enContent = formatContent(item.content_en || '');
+  const zhContent = formatContent(item.content_zh || '');
+  
+  // Map content for display order
+  let contentHtml = '';
+  if (enContent && zhContent) {
+    contentHtml = `
+      <div class="lang-block">
+        <span class="lang-tag">🇬🇧 EN</span>
+        <p>${enContent}</p>
+      </div>
+      <div class="lang-divider"></div>
+      <div class="lang-block">
+        <span class="lang-tag">🇨🇳 中文</span>
+        <p>${zhContent}</p>
+      </div>
+    `;
+  } else if (enContent) {
+    contentHtml = `<div class="lang-block"><p>${enContent}</p></div>`;
+  } else if (zhContent) {
+    contentHtml = `<div class="lang-block"><p>${zhContent}</p></div>`;
+  }
+  
+  // Extra content for podcast
+  let extraHtml = '';
+  if (item.type === 'podcast' && item.title) {
+    extraHtml = `<div class="podcast-title">${item.title}</div>`;
+  }
+  
+  const quoteHtml = item.tweetQuote ? `<div class="quote-block">${item.tweetQuote}</div>` : '';
+  
+  return `
+    <div class="item-card ${type}">
+      <div class="item-meta">
+        <span class="item-type-badge ${type}">${typeLabel}</span>
+        ${publishedDate ? `<span class="item-date">${publishedDate}</span>` : ''}
+      </div>
+      <div class="item-author">
+        <div class="author-avatar">${avatarLetter}</div>
+        <div class="author-info">
+          <div class="author-name">${item.authorName || ''} ${item.handle ? `<span class="author-handle">@${item.handle}</span>` : ''}</div>
+          ${item.bio ? `<div class="author-bio">${item.bio}</div>` : ''}
+        </div>
+      </div>
+      ${extraHtml}
+      <div class="content-block">${contentHtml}</div>
+      ${quoteHtml}
+      ${urlsHtml ? `<div class="item-urls">${urlsHtml}</div>` : ''}
+    </div>
+  `;
+}
+
+function formatContent(text) {
+  if (!text) return '';
+  // Escape HTML
+  let s = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  // Handle line breaks
+  s = s.replace(/\n/g, '<br>');
+  // Bold: **text**
+  s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  // Italic: *text*
+  s = s.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  return s;
+}
+
+// --- Event bindings ---
+$dateStart.addEventListener('change', applyFilters);
+$dateEnd.addEventListener('change', applyFilters);
+$dateSelect.addEventListener('change', function() {
+  if (this.value) {
+    $dateStart.value = '';
+    $dateEnd.value = '';
+  }
+  applyFilters();
+});
+
+// --- Init ---
+loadAllData();
+</script>
+
+</body>
+</html>
