@@ -2,7 +2,7 @@
 """统一服务：静态文件 + API 持久化（风险标签 & 重点监控）"""
 import json, os, re, socket
 from http.server import HTTPServer, SimpleHTTPRequestHandler
-from urllib.parse import urlparse
+from urllib.parse import urlparse, unquote
 
 DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 INDEX_DIR = os.path.join(DATA_DIR, ".index_data")
@@ -95,9 +95,24 @@ class DashboardHandler(SimpleHTTPRequestHandler):
         elif path == "/api/index-state":
             data = read_json(INDEX_STATE_FILE, {"state": "区间震荡"})
             self._json_response(data)
-        elif path == "/api/index-levels":
-            data = read_json(INDEX_LEVELS_FILE, {"lines": []})
-            self._json_response(data)
+        elif path.startswith("/api/index-levels"):
+            query = urlparse(self.path).query
+            params = {}
+            if query:
+                for kv in query.split("&"):
+                    if "=" in kv:
+                        k, v = kv.split("=", 1)
+                        params[k] = v
+            index_name = unquote(params.get("index", "上证指数"))
+            data = read_json(INDEX_LEVELS_FILE, {})
+            if isinstance(data, dict) and "lines" in data:
+                # 旧格式 → 迁移
+                old_lines = data.get("lines", [])
+                old_defaults = data.get("defaults", [4200, 4050, 4000, 3940, 3794])
+                data = {"上证指数": {"lines": old_lines, "defaults": old_defaults}, "创业板指": {"lines": [], "defaults": [2100, 2000, 1900, 1800, 1700]}}
+                write_json(INDEX_LEVELS_FILE, data)
+            index_data = data.get(index_name, {"lines": [], "defaults": [4200, 4050, 4000, 3940, 3794]})
+            self._json_response(index_data)
         elif path == "/api/review":
             all_data = read_json(REVIEW_FILE, [])
             # 按 created_at 降序，取最近 5 条
@@ -143,10 +158,22 @@ class DashboardHandler(SimpleHTTPRequestHandler):
                 self._json_response({"ok": True})
             except Exception as e:
                 self._json_response({"ok": False, "error": str(e)}, 400)
-        elif path == "/api/index-levels":
+        elif path.startswith("/api/index-levels"):
             try:
                 data = json.loads(body)
-                write_json(INDEX_LEVELS_FILE, data)
+                query = urlparse(self.path).query
+                params = {}
+                if query:
+                    for kv in query.split("&"):
+                        if "=" in kv:
+                            k, v = kv.split("=", 1)
+                            params[k] = v
+                index_name = unquote(params.get("index", "上证指数"))
+                full = read_json(INDEX_LEVELS_FILE, {})
+                if isinstance(full, dict) and "lines" in full:
+                    full = {"上证指数": {"lines": full.get("lines", []), "defaults": full.get("defaults", [4200, 4050, 4000, 3940, 3794])}, "创业板指": {"lines": [], "defaults": [2100, 2000, 1900, 1800, 1700]}}
+                full[index_name] = data
+                write_json(INDEX_LEVELS_FILE, full)
                 self._json_response({"ok": True})
             except Exception as e:
                 self._json_response({"ok": False, "error": str(e)}, 400)

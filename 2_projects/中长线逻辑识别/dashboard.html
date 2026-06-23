@@ -563,7 +563,7 @@ function renderMinute(chartId, minuteData, prevClose, indexName, isETF) {
       {type:'category',data:times,gridIndex:1,axisLine:{show:false},axisTick:{show:false},axisLabel:{show:false}},
     ],
     yAxis:[
-      {type:'value',gridIndex:0,min:axisMin,max:axisMax,splitLine:{lineStyle:{color:'#E2E8F0'}},axisLabel:{show:indexName==='上证指数'},position:'left'},
+      {type:'value',gridIndex:0,min:axisMin,max:axisMax,splitLine:{lineStyle:{color:'#E2E8F0'}},axisLabel:{show:indexName==='上证指数'||indexName==='创业板指'},position:'left'},
       {type:'value',gridIndex:1,splitLine:{show:false},axisLabel:{show:false},axisTick:{show:false}},
     ],
     series:[
@@ -577,62 +577,92 @@ function renderMinute(chartId, minuteData, prevClose, indexName, isETF) {
   });
 }
 
-// ========== 上证指数水平线（全局状态 + 编辑面板） ==========
-var _indexLevels = {lines:[
+// ========== 指数水平线（全局状态 + 编辑面板） ==========
+var _indexLevels = {"上证指数":{"lines":[
   {y:4200,color:'#10b981',label:'4200'},
-  {y:4050,color:'#fbbf24',label:'4050'},
-  {y:4000,color:'#ef4444',label:'4000'},
-  {y:3940,color:'#ef4444',label:'3940'},
+  {y:4100,color:'#000000',label:'4100'},
+  {y:4000,color:'#ecad41',label:'4000'},
+  {y:3940,color:'#f09999',label:'3940'},
   {y:3794,color:'#ef4444',label:'3794'}
-]};
+],"defaults":[4200,4050,4000,3940,3794]},"创业板指":{"lines":[
+  {y:2100,color:'#10b981',label:'2100'},
+  {y:1950,color:'#fbbf24',label:'1950'},
+  {y:1800,color:'#ef4444',label:'1800'}
+],"defaults":[2100,2000,1900,1800,1700]}};
 function loadIndexLevels() {
-  fetch('/api/index-levels').then(r=>r.json()).then(function(d){ _indexLevels=d; renderLevelEditor(); refreshKline(); }).catch(function(){});
+  var idxNames = ['创业板指','上证指数'];
+  idxNames.forEach(function(nm){
+    fetch('/api/index-levels?index='+encodeURIComponent(nm)).then(function(r){return r.json();}).then(function(d){
+      if (!_indexLevels[nm]) _indexLevels[nm]={lines:[],defaults:(nm==='创业板指'?[2100,2000,1900,1800,1700]:[4200,4050,4000,3940,3794])};
+      _indexLevels[nm]=d;
+      renderLevelEditor(nm);
+      refreshKline(nm);
+    }).catch(function(){});
+  });
 }
-function saveIndexLevels(data) {
-  _indexLevels = data;
-  fetch('/api/index-levels',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}).catch(function(){});
+function saveIndexLevels(indexName, data) {
+  _indexLevels[indexName] = data;
+  fetch('/api/index-levels?index='+encodeURIComponent(indexName),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}).catch(function(){});
 }
-function renderLevelEditor() {
-  var el = document.getElementById('idx_levels');
+function renderLevelEditor(indexName) {
+  var el = document.getElementById('idx_levels_'+indexName);
   if (!el) return;
-  var lines = (_indexLevels.lines||[]).slice().sort(function(a,b){return b.y-a.y;});
-  var html = '';
+  var idxData = _indexLevels[indexName]||{lines:[]};
+  var lines = (idxData.lines||[]).slice().sort(function(a,b){return b.y-a.y;});
+  var html = '<span style="font-size:11px;color:#64748B;margin-right:4px">'+indexName+'</span>';
   lines.forEach(function(l,i){
-    var origIdx = _indexLevels.lines.indexOf(l);
+    var origIdx = idxData.lines.indexOf(l);
     html += '<span style="display:inline-flex;align-items:center;gap:3px;margin-right:8px;padding:1px 5px;border-radius:3px;background:#F1F5F9;border:1px solid #CBD5E1;">';
     html += '<span style="width:8px;height:8px;border-radius:50%;background:'+l.color+'"></span>';
-    html += '<input type="number" value="'+l.y+'" onchange="onLvlChange('+origIdx+',\'y\',this.value)" style="width:44px;background:transparent;color:#0F172A;border:none;font-size:11px;padding:1px 2px;text-align:center;outline:none">';
-    html += '<input type="color" value="'+l.color+'" onchange="onLvlChange('+origIdx+',\'color\',this.value)" style="width:18px;height:15px;border:none;background:none;cursor:pointer;padding:0;vertical-align:middle">';
-    html += '<button onclick="deleteLevel('+origIdx+')" style="background:none;border:none;color:#64748B;cursor:pointer;font-size:12px;line-height:1;padding:0 1px" title="删除">&times;</button>';
+    html += '<input type="number" value="'+l.y+'" onchange="onLvlChange(\''+indexName+'\','+origIdx+',\'y\',this.value)" style="width:44px;background:transparent;color:#0F172A;border:none;font-size:11px;padding:1px 2px;text-align:center;outline:none">';
+    html += '<input type="color" value="'+l.color+'" onchange="onLvlChange(\''+indexName+'\','+origIdx+',\'color\',this.value)" style="width:18px;height:15px;border:none;background:none;cursor:pointer;padding:0;vertical-align:middle">';
+    html += '<button onclick="deleteLevel(\''+indexName+'\','+origIdx+')" style="background:none;border:none;color:#64748B;cursor:pointer;font-size:12px;line-height:1;padding:0 1px" title="删除">&times;</button>';
     html += '</span>';
   });
-  html += '<button onclick="addLevel()" style="padding:1px 6px;border-radius:3px;font-size:11px;background:transparent;color:#2563EB;border:1px dashed #1d4ed8;cursor:pointer;font-family:inherit;margin-left:4px">+</button>';
+  html += '<button onclick="addLevel(\''+indexName+'\')" style="padding:1px 6px;border-radius:3px;font-size:11px;background:transparent;color:#2563EB;border:1px dashed #1d4ed8;cursor:pointer;font-family:inherit;margin-left:4px">+</button>';
   el.innerHTML = html;
 }
-function onLvlChange(idx, field, val) {
-  if (field==='y') { _indexLevels.lines[idx].y = parseFloat(val)||_indexLevels.lines[idx].y; }
-  if (field==='color') { _indexLevels.lines[idx].color = val; }
-  saveIndexLevels(_indexLevels);
-  refreshKline();
+function onLvlChange(indexName, idx, field, val) {
+  var idxData = _indexLevels[indexName]||{lines:[]};
+  if (field==='y') { idxData.lines[idx].y = parseFloat(val)||idxData.lines[idx].y; }
+  if (field==='color') { idxData.lines[idx].color = val; }
+  saveIndexLevels(indexName, idxData);
+  refreshKline(indexName);
 }
-function addLevel() {
-  var lines = _indexLevels.lines||[];
-  lines.push({y: lines.length ? lines[lines.length-1].y : 4000, color:'#fbbf24', label:'4000'});
-  saveIndexLevels(_indexLevels);
-  renderLevelEditor();
-  refreshKline();
+function addLevel(indexName) {
+  var idxData = _indexLevels[indexName]||{lines:[]};
+  var lines = idxData.lines||[];
+  var lastY = lines.length ? lines[lines.length-1].y : ((indexName==='创业板指')?1950:4000);
+  lines.push({y: lastY, color:'#fbbf24', label:''+lastY});
+  saveIndexLevels(indexName, idxData);
+  renderLevelEditor(indexName);
+  refreshKline(indexName);
 }
-function deleteLevel(idx) {
-  _indexLevels.lines.splice(idx, 1);
-  saveIndexLevels(_indexLevels);
-  renderLevelEditor();
-  refreshKline();
+function deleteLevel(indexName, idx) {
+  var idxData = _indexLevels[indexName]||{lines:[]};
+  idxData.lines.splice(idx, 1);
+  saveIndexLevels(indexName, idxData);
+  renderLevelEditor(indexName);
+  refreshKline(indexName);
 }
-function refreshKline() {
-  var card = document.getElementById('idx_0_k');
-  if (card) { card.innerHTML = ''; }
-  if (window._CHART_BUILDINDEXGRID && window._CHART_BUILDINDEXGRID[0]) {
-    renderKline('idx_0_k', window._CHART_BUILDINDEXGRID[0].kline, '上证指数');
+function refreshKline(indexName) {
+  if (!indexName) {
+    refreshKline('创业板指');
+    refreshKline('上证指数');
+    return;
+  }
+  // 找到该指数在当前网格中的索引
+  var DATA = (window._CHART_BUILDINDEXGRID||[]);
+  for (var i=0;i<DATA.length;i++) {
+    if (DATA[i].name === indexName) {
+      var bid = 'idx_'+i;
+      var card = document.getElementById(bid+'_k');
+      if (card) { card.innerHTML = ''; }
+      if (window._CHART_BUILDINDEXGRID && window._CHART_BUILDINDEXGRID[i]) {
+        renderKline(bid+'_k', window._CHART_BUILDINDEXGRID[i].kline, indexName);
+      }
+      break;
+    }
   }
 }
 
@@ -644,8 +674,9 @@ function renderKline(chartId, klineAll, indexName) {
 
   function buildMarkLines() {
     const ml = [];
-    if (indexName==='上证指数') {
-      (_indexLevels.lines||[]).forEach(function(fl){
+    if (indexName==='上证指数'||indexName==='创业板指') {
+      var idxData = _indexLevels[indexName]||{lines:[]};
+      (idxData.lines||[]).forEach(function(fl){
         ml.push({yAxis:fl.y,label:{show:false},lineStyle:{color:fl.color,type:'solid',width:0.8}});
       });
     }
@@ -789,7 +820,11 @@ function buildIndexGrid() {
     const hdr = document.createElement('div');
     hdr.className = 'grid-row-header';
     hdr.style.cssText = 'display:flex;justify-content:space-between;align-items:center';
-    hdr.innerHTML = '<span>' + item.name + ' ' + (item.code||'') + '</span>' + (idx===0 ? '<span id="idx_levels" style="font-size:11px;color:#475569"></span>' : '');
+    var levelEditorHtml = '';
+    if (item.name==='创业板指'||item.name==='上证指数') {
+      levelEditorHtml = '<span id="idx_levels_'+item.name+'" style="font-size:11px;color:#475569"></span>';
+    }
+    hdr.innerHTML = '<span>' + item.name + ' ' + (item.code||'') + '</span>' + levelEditorHtml;
     grid.appendChild(hdr);
 
     // Col 1: 分时

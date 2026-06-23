@@ -284,7 +284,7 @@ def get_block_trades(date_str):
     except Exception as e:
         print(f"  大宗交易获取失败: {e}")
         return []
-INDEX_ORDER = ["上证指数", "深证成指", "创业板指", "科创综指"]
+INDEX_ORDER = ["创业板指", "上证指数", "深证成指", "科创综指"]
 INDEX_CODES = {"上证指数": "000001", "深证成指": "399001", "创业板指": "399006", "科创综指": "000680"}
 ETF_ORDER = ["中证500ETF", "沪深300ETF", "上证50ETF", "半导体设备ETF", "科创芯片ETF", "创业板ETF"]
 COLORS = ["#2563EB", "#f59e0b", "#ef4444", "#10b981", "#8b5cf6", "#ec4899"]

@@ -401,23 +401,31 @@ def check_index_volume(date_str, date_label):
 
 # ======== 策略 3: 指数震荡区间风险机会判断 ========
 
-def load_index_levels():
-    """从 index_levels.json 读取上证指数日K 水平线（唯一数据源）"""
+def load_index_levels(index_name="上证指数"):
+    """从 index_levels.json 读取指定指数的日K水平线"""
     path = os.path.join(PROJECT_DIR, "index_levels.json")
+    defaults = {"上证指数": [4200, 4050, 4000, 3940, 3794], "创业板指": [2100, 2000, 1900, 1800, 1700]}
     if os.path.exists(path):
         try:
             with open(path, encoding="utf-8") as f:
                 data = json.load(f)
-                lines = [l["y"] for l in data.get("lines", [])]
+            # 新格式：{"上证指数": {"lines": [...]}, "创业板指": {"lines": [...]}}
+            if isinstance(data, dict) and index_name in data and "lines" in data[index_name]:
+                lines = [l["y"] for l in data[index_name]["lines"]]
                 if lines:
-                    return sorted(lines, reverse=True)  # 从高到低
+                    return sorted(lines, reverse=True)
+            # 旧格式兼容
+            if isinstance(data, dict) and "lines" in data:
+                lines = [l["y"] for l in data.get("lines", [])]
+                if lines and index_name == "上证指数":
+                    return sorted(lines, reverse=True)
         except Exception:
             pass
-    # fallback
-    return [4200, 4050, 4000, 3940, 3794]
+    return sorted(defaults.get(index_name, defaults["上证指数"]), reverse=True)
 
 
-SZ_LINES = load_index_levels()
+SZ_LINES = load_index_levels("上证指数")
+CY_LINES = load_index_levels("创业板指")
 
 
 def load_index_state():
@@ -434,10 +442,11 @@ def load_index_state():
 
 def check_index_zone(date_str, date_label):
     """
-    检测上证指数在震荡区间内的位置
+    检测上证指数和创业板指在各自震荡区间内的位置
     - N 条线 → N+1 个区间
     - 每个区间内，上部 50% → 风险，下部 50% → 机会
     - 仅当状态为「区间震荡」时执行
+    - 上证和创业板使用各自的水平线（数据独立）和各自的计算逻辑
     """
     alerts = []
 
@@ -446,52 +455,59 @@ def check_index_zone(date_str, date_label):
         print(f"  指数状态: {state}，跳过区间判断")
         return alerts
 
-    # 读取上证指数当日收盘价
+    # 读取当日指数数据
     today_idx = read_index_daily(date_str)
-    sz = today_idx.get("上证指数")
-    if not sz:
-        print("  ⚠ 上证指数数据缺失，跳过")
-        return alerts
 
-    close = sz.get("收盘", 0)
-    if close <= 0:
-        return alerts
+    # 同时检测上证指数和创业板指
+    checks = [
+        ("上证指数", "上证指数", SZ_LINES),
+        ("创业板指", "创业板指", CY_LINES),
+    ]
 
-    # 水平线从低到高排序
-    lines = sorted(SZ_LINES)  # [3794, 3940, 4000, 4050, 4200]
-    n = len(lines)
+    for idx_name, label_prefix, lines in checks:
+        idx_data = today_idx.get(idx_name)
+        if not idx_data:
+            print(f"  ⚠ {idx_name} 数据缺失，跳过区间判断")
+            continue
 
-    # 找到当前收盘价所在区间
-    zone_idx = -1
-    for i in range(n + 1):
-        low = lines[i - 1] if i > 0 else float("-inf")
-        high = lines[i] if i < n else float("inf")
-        if (i == 0 and close < high) or \
-           (i == n and close >= low) or \
-           (0 < i < n and low <= close < high):
-            zone_idx = i
-            break
+        close = idx_data.get("收盘", 0)
+        if close <= 0:
+            continue
 
-    if zone_idx < 0:
-        return alerts
+        sorted_lines = sorted(lines)  # 从低到高
+        n = len(sorted_lines)
 
-    # 计算该区间的上下 50% 分界
-    zone_low = lines[zone_idx - 1] if zone_idx > 0 else lines[0] - (lines[1] - lines[0]) if n > 1 else lines[0] - 100
-    zone_high = lines[zone_idx] if zone_idx < n else lines[-1] + (lines[-1] - lines[-2]) if n > 1 else lines[-1] + 100
-    mid = zone_low + (zone_high - zone_low) * 0.5
+        # 找到当前收盘价所在区间
+        zone_idx = -1
+        for i in range(n + 1):
+            low = sorted_lines[i - 1] if i > 0 else float("-inf")
+            high = sorted_lines[i] if i < n else float("inf")
+            if (i == 0 and close < high) or \
+               (i == n and close >= low) or \
+               (0 < i < n and low <= close < high):
+                zone_idx = i
+                break
 
-    if close >= mid:
-        alerts.append({
-            "type": "risk",
-            "label": f"{date_label}：上证指数运行在区间上沿，回调压力",
-            "detail": f"收盘 {close:.0f} 在 [{zone_low:.0f}, {zone_high:.0f}] 上部50% (分界{mid:.0f})",
-        })
-    else:
-        alerts.append({
-            "type": "opp",
-            "label": f"{date_label}：上证指数运行在区间下沿，反弹需求",
-            "detail": f"收盘 {close:.0f} 在 [{zone_low:.0f}, {zone_high:.0f}] 下部50% (分界{mid:.0f})",
-        })
+        if zone_idx < 0:
+            continue
+
+        # 计算该区间的上下 50% 分界
+        zone_low = sorted_lines[zone_idx - 1] if zone_idx > 0 else sorted_lines[0] - (sorted_lines[1] - sorted_lines[0]) if n > 1 else sorted_lines[0] - 100
+        zone_high = sorted_lines[zone_idx] if zone_idx < n else sorted_lines[-1] + (sorted_lines[-1] - sorted_lines[-2]) if n > 1 else sorted_lines[-1] + 100
+        mid = zone_low + (zone_high - zone_low) * 0.5
+
+        if close >= mid:
+            alerts.append({
+                "type": "risk",
+                "label": f"{date_label}：{idx_name}运行在区间上沿，回调压力",
+                "detail": f"{idx_name}收盘 {close:.0f} 在 [{zone_low:.0f}, {zone_high:.0f}] 上部50% (分界{mid:.0f})",
+            })
+        else:
+            alerts.append({
+                "type": "opp",
+                "label": f"{date_label}：{idx_name}运行在区间下沿，反弹需求",
+                "detail": f"{idx_name}收盘 {close:.0f} 在 [{zone_low:.0f}, {zone_high:.0f}] 下部50% (分界{mid:.0f})",
+            })
 
     return alerts
 
