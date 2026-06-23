@@ -87,6 +87,17 @@ body{background:#F8FAFC;color:#0F172A;font-family:'Fira Sans',-apple-system,sans
 .empty-state .icon{font-size:32px;margin-bottom:12px}
 .empty-state p{font-size:13px}
 
+/* Custom select dropdown */
+.custom-select{position:relative;display:inline-block;outline:none;vertical-align:top}
+.select-trigger{display:flex;align-items:center;gap:4px;padding:3px 8px;border-radius:6px;font-size:12px;background:#FFF;color:#0F172A;border:1px solid #CBD5E1;cursor:pointer;font-family:inherit;white-space:nowrap;user-select:none}
+.select-trigger:hover{border-color:#2563EB}
+.select-arrow{font-size:10px;color:#94A3B8;transition:transform .2s}
+.custom-select.open .select-arrow{transform:rotate(180deg)}
+.select-options{position:absolute;top:calc(100% + 4px);left:0;min-width:120px;background:#FFF;border:1px solid #E2E8F0;border-radius:8px;box-shadow:0 4px 16px rgba(15,23,42,.1);z-index:300;padding:4px;max-height:220px;overflow-y:auto}
+.select-option{padding:5px 10px;border-radius:4px;font-size:12px;color:#0F172A;cursor:pointer;white-space:nowrap;transition:background .12s}
+.select-option:hover{background:#EFF6FF;color:#2563EB}
+.select-option.selected{background:#EEF2FF;color:#2563EB;font-weight:600}
+
 /* Tooltip hint */
 .tooltip-hint{position:relative;display:inline-block;color:#94A3B8;cursor:help;font-weight:700;width:16px;text-align:center;border:1px solid #CBD5E1;border-radius:50%;font-size:10px;line-height:14px}
 .tooltip-hint:hover .tooltip-text{visibility:visible;opacity:1}
@@ -134,7 +145,7 @@ body{background:#F8FAFC;color:#0F172A;font-family:'Fira Sans',-apple-system,sans
 /* Review Drawer — polished */
 .drawer-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,.35);z-index:200;display:none;backdrop-filter:blur(2px)}
 .drawer-overlay.open{display:block}
-.drawer{position:fixed;top:0;right:-52vw;width:50vw;height:100vh;background:#FFF;z-index:210;box-shadow:-8px 0 32px rgba(15,23,42,.12);transition:right .35s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column;overflow:hidden}
+.drawer{position:fixed;top:0;right:-33.34vw;width:33.34vw;height:100vh;background:#FFF;z-index:210;box-shadow:-8px 0 32px rgba(15,23,42,.12);transition:right .35s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column;overflow:hidden}
 .drawer.open{right:0}
 .drawer-header{display:flex;justify-content:space-between;align-items:center;padding:18px 24px 14px;border-bottom:1px solid #E2E8F0;flex-shrink:0}
 .drawer-header h3{font-size:15px;font-weight:600;color:#0F172A;display:flex;align-items:center;gap:8px}
@@ -267,11 +278,45 @@ body{background:#F8FAFC;color:#0F172A;font-family:'Fira Sans',-apple-system,sans
   </div>
   <div class="indicator" id="index-state-indicator">
     <span class="label">指数状态</span>
-    <select id="index-state-select" onchange="onIndexStateChange(this.value)" style="padding:4px 8px;border-radius:6px;font-size:12px;background:#FFF;color:#0F172A;border:1px solid #CBD5E1;font-family:inherit;cursor:pointer;margin-top:2px">
-      <option value="区间震荡">区间震荡</option>
-      <option value="主升">主升</option>
-      <option value="破位下跌">破位下跌</option>
-    </select>
+    <div class="custom-select" id="idx-state-dropdown" tabindex="0" onblur="closeDropdown('idx-state-dropdown')">
+      <div class="select-trigger" onclick="toggleDropdown('idx-state-dropdown')">
+        <span class="select-value" id="idx-state-label">区间震荡</span>
+        <span class="select-arrow">▾</span>
+      </div>
+      <div class="select-options" style="display:none">
+        <div class="select-option" data-value="区间震荡" onclick="selectIndexState('区间震荡')">区间震荡</div>
+        <div class="select-option" data-value="主升" onclick="selectIndexState('主升')">主升</div>
+        <div class="select-option" data-value="破位下跌" onclick="selectIndexState('破位下跌')">破位下跌</div>
+      </div>
+    </div>
+  </div>
+  <div class="indicator" id="tech-line-indicator">
+    <span class="label">科技主线状态</span>
+    <div class="custom-select" id="tech-line-dropdown" tabindex="0" onblur="closeDropdown('tech-line-dropdown')">
+      <div class="select-trigger" onclick="toggleDropdown('tech-line-dropdown')">
+        <span class="select-value" id="tech-line-label">大小光领涨</span>
+        <span class="select-arrow">▾</span>
+      </div>
+      <div class="select-options" style="display:none">
+        <div class="select-option" data-value="大小光领涨" onclick="selectTechLine('大小光领涨')">大小光领涨</div>
+        <div class="select-option" data-value="PCB 领涨" onclick="selectTechLine('PCB 领涨')">PCB 领涨</div>
+        <div class="select-option" data-value="上游材料领涨" onclick="selectTechLine('上游材料领涨')">上游材料领涨</div>
+        <div class="select-option" data-value="弱势跟涨" onclick="selectTechLine('弱势跟涨')">弱势跟涨</div>
+        <div class="select-option" data-value="首日分歧" onclick="selectTechLine('首日分歧')">首日分歧</div>
+        <div class="select-option" data-value="分歧延续" onclick="selectTechLine('分歧延续')">分歧延续</div>
+        <div class="select-option" data-value="分歧衰竭" onclick="selectTechLine('分歧衰竭')">分歧衰竭</div>
+      </div>
+    </div>
+  </div>
+  <div class="indicator" id="tech-tomorrow-indicator">
+    <span class="label">科技明日预期</span>
+    <div id="tech-tomorrow-checks" style="display:flex;flex-wrap:wrap;gap:4px;margin-top:2px">
+      <label style="font-size:11px;cursor:pointer;display:flex;align-items:center;gap:2px"><input type="checkbox" value="修复" onchange="onTechTomorrowChange()">修复</label>
+      <label style="font-size:11px;cursor:pointer;display:flex;align-items:center;gap:2px"><input type="checkbox" value="一致延续" onchange="onTechTomorrowChange()">一致延续</label>
+      <label style="font-size:11px;cursor:pointer;display:flex;align-items:center;gap:2px"><input type="checkbox" value="分歧" onchange="onTechTomorrowChange()">分歧</label>
+      <label style="font-size:11px;cursor:pointer;display:flex;align-items:center;gap:2px"><input type="checkbox" value="分歧延续" onchange="onTechTomorrowChange()">分歧延续</label>
+      <label style="font-size:11px;cursor:pointer;display:flex;align-items:center;gap:2px"><input type="checkbox" value="分歧衰竭" onchange="onTechTomorrowChange()">分歧衰竭</label>
+    </div>
   </div>
 </div>
 <div class="risk-tags" id="risk-tags">
@@ -1411,18 +1456,78 @@ function renderMonitorTable(data) {
   el.innerHTML = h;
 }
 
-// ========== 指数状态 ==========
+// ========== 自定义下拉框（下方展开） ==========
+function toggleDropdown(id) {
+  var el = document.getElementById(id);
+  var menu = el.querySelector('.select-options');
+  var isOpen = menu.style.display === 'block';
+  // 关闭所有其他下拉
+  document.querySelectorAll('.custom-select.open').forEach(function(d){
+    if (d.id !== id) { d.classList.remove('open'); d.querySelector('.select-options').style.display = 'none'; }
+  });
+  el.classList.toggle('open', !isOpen);
+  menu.style.display = isOpen ? 'none' : 'block';
+}
+function closeDropdown(id) {
+  // 延迟执行，使点击选项时不会立即关闭
+  setTimeout(function(){
+    var el = document.getElementById(id);
+    if (el) {
+      el.classList.remove('open');
+      var menu = el.querySelector('.select-options');
+      if (menu) menu.style.display = 'none';
+    }
+  }, 150);
+}
+function selectIndexState(val) {
+  _indexState = val;
+  document.getElementById('idx-state-label').textContent = val;
+  closeDropdown('idx-state-dropdown');
+  saveIndexState();
+}
+function selectTechLine(val) {
+  _techLineState = val;
+  document.getElementById('tech-line-label').textContent = val;
+  closeDropdown('tech-line-dropdown');
+  saveIndexState();
+}
+
+// ========== 指数状态 + 科技主线状态 + 科技明日预期 ==========
 var _indexState = "区间震荡";
+var _techLineState = "大小光领涨";
+var _techTomorrowExpect = [];
+var _stateLoaded = false;
 function loadIndexState() {
   fetch('/api/index-state').then(r=>r.json()).then(function(d){
     _indexState = d.state || "区间震荡";
-    var sel = document.getElementById('index-state-select');
-    if (sel) sel.value = _indexState;
+    var lbl = document.getElementById('idx-state-label');
+    if (lbl) lbl.textContent = _indexState;
+    // 科技主线状态
+    _techLineState = d.tech_main_line_state || "大小光领涨";
+    var techLbl = document.getElementById('tech-line-label');
+    if (techLbl) techLbl.textContent = _techLineState;
+    // 科技明日预期
+    _techTomorrowExpect = d.tech_tomorrow_expect || [];
+    var checks = document.querySelectorAll('#tech-tomorrow-checks input[type=checkbox]');
+    checks.forEach(function(cb){
+      cb.checked = _techTomorrowExpect.indexOf(cb.value) !== -1;
+    });
+    _stateLoaded = true;
   }).catch(function(){});
 }
-function onIndexStateChange(state) {
-  _indexState = state;
-  fetch('/api/index-state',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({state:state})}).catch(function(){});
+function onTechTomorrowChange() {
+  var checks = document.querySelectorAll('#tech-tomorrow-checks input[type=checkbox]:checked');
+  _techTomorrowExpect = [];
+  checks.forEach(function(cb){ _techTomorrowExpect.push(cb.value); });
+  saveIndexState();
+}
+function saveIndexState() {
+  var data = {
+    state: _indexState,
+    tech_main_line_state: _techLineState,
+    tech_tomorrow_expect: _techTomorrowExpect
+  };
+  fetch('/api/index-state',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}).catch(function(){});
 }
 
 // ===== 服务检测 =====
@@ -1583,12 +1688,10 @@ var _reviewLimit = 5;
 var _editingReviewId = null;
 
 function toggleReviewDrawer() {
-  var overlay = document.getElementById('review-overlay');
   var drawer = document.getElementById('review-drawer');
-  var open = !overlay.classList.contains('open');
-  overlay.classList.toggle('open', open);
-  drawer.classList.toggle('open', open);
-  if (open) {
+  var open = drawer.classList.contains('open');
+  drawer.classList.toggle('open', !open);
+  if (!open) {
     document.getElementById('review-date').value = new Date().toISOString().slice(0,10);
     cancelEdit();
     loadReviewMeta();
