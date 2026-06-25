@@ -9,6 +9,10 @@
 策略 4：赚钱效应检测（二冰/三冰 + 放量下跌）
 策略 5：上证均线支撑/压制检测（MA5/10/20/30/60/120，距收盘最近的均线）
 
+打标规则（--save-tags 时生效）：
+- 市场量能 < 3万亿：仅保存风险标签，提示风险
+- 其他情况：正常保存所有标签
+
 用法:
     python anomaly_detection.py                    # 检测最新交易日（全部策略）
     python anomaly_detection.py --date 2026-05-22  # 指定日期
@@ -366,13 +370,7 @@ def check_index_volume(date_str, date_label):
 
     today_amt = (sh_amt + sz_amt) * 1.01  # 亿元
 
-    # 情境 1: 超过 3w 亿
-    if today_amt >= 30000:
-        alerts.append({
-            "type": "both",
-            "label": f"{date_label}：市场成交额超过3w亿",
-            "detail": f"市场总成交额 {today_amt:.0f} 亿",
-        })
+
 
     # 情境 2: 超过前 5 日均值的 1.1 倍
     prev_dates = get_previous_index_dates(date_str, n=5)
@@ -987,8 +985,29 @@ def run_detection(date_str=None, output_json=False, save_tags=False):
     if output_json:
         print(json.dumps(all_alerts, ensure_ascii=False, indent=2))
 
+# 打标规则（--save-tags 时生效）：
+# - 市场量能 < 3万亿：仅保存风险标签，提示风险
+# - 其他情况：正常保存所有标签
+
     if save_tags and all_alerts:
-        _save_tags(all_alerts, date_str)
+        # 读取当日成交额
+        today_idx = read_index_daily(date_str)
+        sh_today = today_idx.get("上证指数") if today_idx else None
+        sz_today = today_idx.get("深证成指") if today_idx else None
+        sh_amt = sh_today.get("成交额_亿", 0) or 0 if sh_today else 0
+        sz_amt = sz_today.get("成交额_亿", 0) or 0 if sz_today else 0
+        market_vol = (sh_amt + sz_amt) * 1.01 if sh_amt > 0 and sz_amt > 0 else 0
+        print(f"\n  市场总成交额: {market_vol:.0f} 亿")
+
+        if 0 < market_vol < 30000:
+            # 量能不足 → 仅提示风险，机会标签不提示
+            filtered = [a for a in all_alerts if a["type"] in ("risk", "both")]
+            print(f"  量能 < 3万亿，仅保留风险标签（过滤掉 {len(all_alerts)-len(filtered)} 条机会标签）")
+            if filtered:
+                _save_tags(filtered, date_str)
+        else:
+            # 量能充足或无成交额数据，正常保存所有标签
+            _save_tags(all_alerts, date_str)
 
     return all_alerts
 

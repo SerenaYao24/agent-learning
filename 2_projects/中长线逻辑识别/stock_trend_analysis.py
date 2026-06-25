@@ -1485,6 +1485,95 @@ def _fetch_10d_return(code):
         return None
 
 
+def prune_inactive_stocks(input_path, cache, code_map):
+    """
+    清理非活跃标的：近5日涨幅<0 且 近10日涨幅<0 且 近5日无单日涨幅>5% 的标的
+    从 interest_stock.md 和缓存中删除。
+    条件：标的需有 ≥10 天的收盘价数据，且在 interest_stock.md 中存在。
+    返回 (updated_cache, set_of_removed_stock_names)
+    """
+    # 读取 interest_stock.md 中的标的名称
+    wl_names = set()
+    with open(input_path, 'r', encoding='utf-8') as f:
+        for line in f:
+            s = line.strip()
+            if s and not s.startswith('#'):
+                name = s.split('（')[0].split('(')[0].strip()
+                wl_names.add(name)
+
+    # 反向映射：code → name
+    code_to_name = {code: name for name, code in code_map.items()}
+
+    # 检查每个在 interest_stock.md 中的标的
+    removed = set()
+    for code, data in cache.items():
+        name = code_to_name.get(code)
+        if not name or name not in wl_names:
+            continue
+        closes = data.get('close', [])
+        changes = data.get('daily_changes', [])
+        if not closes or len(closes) < 10:
+            continue
+        try:
+            if not all(isinstance(c, (int, float)) and c > 0 for c in [closes[-1], closes[-6], closes[-10]]):
+                continue
+            ret_5d = (closes[-1] / closes[-6] - 1) * 100
+            ret_10d = (closes[-1] / closes[-10] - 1) * 100
+        except (ZeroDivisionError, IndexError, TypeError):
+            continue
+        # 条件1：近5日涨幅<0 且 近10日涨幅<0
+        if not (ret_5d < 0 and ret_10d < 0):
+            continue
+        # 条件2：近5日内没有任何一日涨幅超过5%（保留偶尔活跃的标的）
+        last5_changes = changes[-5:] if len(changes) >= 5 else changes
+        if any(c > 5 for c in last5_changes):
+            continue
+        removed.add(name)
+
+    if not removed:
+        return cache, removed
+
+    print(f"\n🧹 清理非活跃标的（近5日<0 且 近10日<0）：{len(removed)} 只")
+    for name in sorted(removed):
+        print(f"  - {name}")
+
+    # 从 interest_stock.md 删除
+    with open(input_path, 'r', encoding='utf-8') as f:
+        lines = f.readlines()
+    new_lines = []
+    for line in lines:
+        stripped = line.strip()
+        if stripped and not stripped.startswith('#'):
+            name = stripped.split('（')[0].split('(')[0].strip()
+            if name in removed:
+                continue
+        new_lines.append(line)
+    with open(input_path, 'w', encoding='utf-8') as f:
+        f.writelines(new_lines)
+
+    # 从缓存删除
+    removed_codes = {code for code, name in code_to_name.items() if name in removed}
+    for code in removed_codes:
+        cache.pop(code, None)
+    save_cache(cache)
+
+    # 写入清理日志
+    log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "log")
+    os.makedirs(log_dir, exist_ok=True)
+    log_path = os.path.join(log_dir, f"{datetime.now().strftime('%Y-%m-%d')}_prune.log")
+    with open(log_path, 'w', encoding='utf-8') as f:
+        f.write(f"# 非活跃标的清理日志 {datetime.now().strftime('%Y-%m-%d')}\n")
+        f.write(f"# 清理条件：近5日涨幅<0 且 近10日涨幅<0 且 近5日无单日涨幅>5%，且有≥10天数据\n")
+        f.write(f"# 共清理 {len(removed)} 只\n\n")
+        for name in sorted(removed):
+            f.write(f"- {name}\n")
+
+    print(f"💾 interest_stock.md 和 stock_data.json 已更新")
+    print(f"📝 清理日志: {log_path}")
+
+    return cache, removed
+
+
 def generate_top_list(input_path, output_path):
     """
     从 interest_stock.md 生成 top_list.md
@@ -1861,6 +1950,12 @@ def main():
                 os.makedirs(d)
     except Exception:
         pass  # iCloud 目录创建失败不影响本地
+
+    # 清理非活跃标的（在 generate_top_list 之前，确保不出现在报告和看板中）
+    cache, removed_stocks = prune_inactive_stocks(input_path, cache, STOCK_CODE_MAP)
+    if removed_stocks:
+        for i, (gname, results) in enumerate(grouped_results):
+            grouped_results[i] = (gname, [r for r in results if r.get('stock_name') not in removed_stocks])
 
     # 数据已全部获取完毕，更新 top_list.md
     generate_top_list(input_path, top_list_path)

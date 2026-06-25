@@ -37,6 +37,9 @@ BROAD_GROUP_SECTORS = {
         'AIDC-电源/发电机', 'AIDC-变压器',
     ],
 }
+# 不再跟踪的题材（新标的不会加入自选）
+EXCLUDED_SECTORS = {'AI 应用', '地产', '消费', '光伏', '小金属/贵金属'}
+
 SECTOR_KEYWORDS = OrderedDict([
     ('CPO', ['cpo', '光引擎']),
     ('MLCC 电容', ['mlcc', '离型膜']),
@@ -80,7 +83,7 @@ SECTOR_KEYWORDS = OrderedDict([
     ('CPU', ['cpu']),
     ('半导体洁净室', ['洁净室']),
     ('金刚石', ['培育钻石', '金刚石散热', '金刚石', '超硬材料']),
-    ('化工', ['化工', '涤纶', 'pta', '化纤', '轮胎', '油脂化学', '表面活性剂', '钛白粉', '染料', '磷酸铁', '草铵膦', '农药原药', 'poe', 'eaa']),
+    ('化工', ['化工', '涤纶', 'pta', '化纤', '轮胎', '油脂化学', '表面活性剂', '钛白粉', '染料', '磷酸铁', '草铵膦', '农药原药', 'poe', 'eaa', '三乙胺', '铬盐', '氦气', '页岩气', 'sofc']),
     ('物理AI', ['物理ai']),
     ('光伏', ['光伏', '太阳能', '钙钛矿', 'tco']),
 ])
@@ -195,13 +198,16 @@ def main():
             if name not in stock_section_map:  # first occurrence wins
                 stock_section_map[name] = (sec_name, desc, entry_line)
     
-    # Match new stocks
+    # Match new stocks (exclude untracked sectors)
     matched = OrderedDict()
     unmatched = []
+    excluded_stocks = []
     for s in new_stocks:
         sector = match_sector(s['reason'], s.get('concept_group', ''))
-        if sector:
+        if sector and sector not in EXCLUDED_SECTORS:
             matched.setdefault(sector, []).append(s)
+        elif sector and sector in EXCLUDED_SECTORS:
+            excluded_stocks.append(s)
         else:
             unmatched.append(s)
     
@@ -236,7 +242,7 @@ def main():
             new_desc = f"（{new_reason}）"
         updated_descs[s['name']] = new_desc
     
-    # Write regular sections
+    # Write regular sections (skip excluded sectors for new adds)
     for sec_name, entries in wl_sections.items():
         if sec_name == '未匹配题材':
             continue
@@ -259,8 +265,10 @@ def main():
         
         output.append('')
     
-    # Add new sections not in WL
+    # Add new sections not in WL (skip excluded sectors)
     for sec_name in matched:
+        if sec_name in EXCLUDED_SECTORS:
+            continue
         if sec_name not in wl_sections:
             # 新题材来自 SECTOR_KEYWORDS，没有备注
             output.append(format_topic_header(sec_name))
@@ -324,6 +332,43 @@ def main():
         print("✅ 验证通过")
     
     # Summary
+    # ===== 今日涨停板题材分布 =====
+    # Build per-sector summary, counting existing stocks under their WL sector
+    sector_summary = OrderedDict()
+    for s in in_wl:
+        existing_sec = stock_section_map.get(s['name'], (None, '', ''))[0]
+        if existing_sec and existing_sec != '未匹配题材':
+            sector_summary.setdefault(existing_sec, {'existing': [], 'new': []})
+            sector_summary[existing_sec]['existing'].append(s['name'])
+    for sec, stks in matched.items():
+        sector_summary.setdefault(sec, {'existing': [], 'new': []})
+        sector_summary[sec]['new'].extend(s['name'] for s in stks)
+    
+    total_existing = len(in_wl)
+    total_new_matched = sum(len(v) for v in matched.values())
+    total_new_excluded = len(excluded_stocks)
+    
+    print(f"\n{'='*60}")
+    print(f"  今日涨停板题材分布（{today}）")
+    print(f"{'='*60}")
+    print(f"涨停总数: {len(zt_stocks)} 只")
+    print(f"{'题材':<20} {'已有':>4} {'新增':>4} {'合计':>5}")
+    print(f"{'-'*20} {'-'*4} {'-'*4} {'-'*5}")
+    for sec, counts in sector_summary.items():
+        exist = len(counts['existing'])
+        new = len(counts['new'])
+        total = exist + new
+        if total > 0:
+            # Truncate long names
+            sec_display = sec if len(sec) <= 18 else sec[:17] + '…'
+            print(f"{sec_display:<20} {exist:>4} {new:>4} {total:>5}")
+    print(f"{'-'*20} {'-'*4} {'-'*4} {'-'*5}")
+    print(f"{'合计':<20} {total_existing:>4} {total_new_matched:>4} {total_existing + total_new_matched:>5}")
+    if total_new_excluded > 0:
+        print(f"(其中{total_new_excluded}只因题材停跟踪未入库: {', '.join(s['name'] for s in excluded_stocks)})")
+    if unmatched:
+        print(f"未匹配: {len(unmatched)} 只")
+    
     total_new = sum(len(v) for v in matched.values())
     print(f"\n=== 摘要 ===")
     print(f"已在自选(异动原因已追加): {len(in_wl)}")

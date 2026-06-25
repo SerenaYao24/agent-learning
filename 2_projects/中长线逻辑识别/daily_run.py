@@ -38,6 +38,7 @@ STEPS = [
     ("MA5角度趋势", ["python3", "_gen_ma5_trend.py"]),
     ("异常检测", ["python3", "anomaly_detection.py", "--save-tags"]),
     ("生成看板", ["python3", "generate_dashboard.py"]),
+    ("同步到腾讯文档", ["python3", "sync_tencent_doc.py"]),
 ]
 
 

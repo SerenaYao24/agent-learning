@@ -22,6 +22,7 @@
   - K 线页面可正常在浏览器打开，卡片平铺布局
   - CSV 自动保存到 `.ma5_ranking/`，报告输出到 iCloud「股票分析结果」
 - **质量等级/降级口径**：爬虫不可用时降级到公式版，标注 fallback
+- **非活跃标的清理**：`stock_trend_analysis.py` 数据获取后自动清理，条件：近5日<0 且 近10日<0 且 近5日无单日>5%，至少10天数据。从 `interest_stock.md` 和 `stock_data.json` 双删，清洗日志到 `log/{日期}_prune.log`
 
 ## 输入清单（Input）
 
@@ -39,6 +40,7 @@
   - `generate_trend_page.py` 需缓存中有 OHLCV 数据
   - **`generate_dashboard.py` 仅产出数据文件（JSON/JS），不再生成 HTML**。`dashboard.html` 是纯静态文件，前端代码直接在其中维护
 - **软约束/偏好**：MA5 排行优先爬虫版，公式版备用；风险/机会/监控数据经 API 持久化到项目根目录 JSON 文件
+  - 非活跃标的清理依赖 `stock_data.json` 和 `stock_code_map.json`；数据不足10天的新股/北交所标的跳过
 - **冲突处理**：缓存过期 → `--refresh` 全量刷新
 
 ## 工作指令（Workflow instructions）
@@ -60,7 +62,7 @@ python scrape_ma5_ranking.py --query "五日均线角度从大到小排名前 10
 
 步骤：启动 Chromium → 输入条件 → 点击「去选股」→ 调大分页 → 提取数据 → 保存 CSV
 
-### 2. 自选股趋势分析
+### 2. 自选股趋势分析（含非活跃标的自动清理）
 
 ```bash
 python stock_trend_analysis.py -i interest_stock.md              # 日常增量运行
@@ -68,6 +70,12 @@ python stock_trend_analysis.py -i interest_stock.md --refresh    # 全量刷新 
 python stock_trend_analysis.py -i interest_stock.md --force-gen  # 仅重生成报告
 python stock_trend_analysis.py -i interest_stock.md --multi      # 仅多日汇总
 ```
+
+数据获取后自动清理非活跃标的：
+- **条件**：近5日涨幅<0 **且** 近10日涨幅<0 **且** 近5日无单日涨幅>5%，需≥10天数据
+- **动作**：从 `interest_stock.md` 删除该行、从 `stock_data.json` 删除数据、从 `grouped_results` 过滤（不出现在报告/看板）
+- **日志**：`log/{日期}_prune.log`
+- 清理在 `generate_top_list`（近10日涨幅前15）之前执行，确保 top_list.md 和下游报告不包含非活跃标的
 
 ### 3. 题材/标的筛选
 
@@ -141,13 +149,14 @@ python3 dashboard_server.py          # 启动统一服务（端口 8977）
 **机会标签**：数据驱动（涨跌家数分析 + 上证均线支撑 MA5/10/20/30/60/120）+ 手动添加，黄绿色标签，与风险标签平行运作。
 **题材统计**：使用 `top_list.md`（近10日涨幅前15）作为股票池，排除僵尸股对板块整体判断的影响。多日报告中 d1~d4 从历史每日报告的题材表获取，d5 从当前 top_list 缓存计算。
 
-### 7. 题材涨幅排行（按近10日涨幅筛选前15）
+### 7. 题材涨幅排行（按近10日涨幅筛选前15）＋ 非活跃标的自动清理
 
-该功能已内嵌到 `stock_trend_analysis.py`，数据获取完成后、报告生成前自动更新 `top_list.md`，无需单独执行。
+该功能已内嵌到 `stock_trend_analysis.py`，数据获取完成后、`generate_top_list` 之前自动执行：
 
-步骤：读取 interest_stock.md → 按题材分组 → 从缓存计算各标的近10日涨幅 → 每题材保留涨幅前15名 → 输出 top_list.md（格式与 interest_stock.md 一致）。
-- 无数据标的放末尾并标注 `# ⚠️ 无近10日数据`
-- 代码映射支持硬编码修正（`HARDCODED_MAP`），覆盖名称映射错误
+1. **清理非活跃标的**：`prune_inactive_stocks()` — 判断条件：近5日涨幅<0 & 近10日涨幅<0 & 近5日无单日涨幅>5%
+2. **生成 top_list.md**：对每题材按近10日涨幅排序保留前15名（输出格式与 interest_stock.md 一致）
+
+无需单独执行这两个步骤。
 
 ### 10. 涨停板复盘（自选股匹配）
 
@@ -160,8 +169,12 @@ python3 match_zt_data.py               # 匹配自选股 → interest_stock_back
 1. **抓取**：`scrape_zt_data.py` 用 agent-browser 打开短线侠 → 点击涨停表现 → 全部展开 → 提取 66 只封板股票（过滤炸板/破板），含详细异动原因、板数、板形、换手率等，输出 tab 分隔文件
 2. **匹配**：`match_zt_data.py` 读取 log 数据 + `interest_stock.md`，按 `SECTOR_KEYWORDS` 字典匹配板块（窄板块优先，首个关键词命中即归入）。已有标的追加异动原因（去重），新标的按关键词归入板块，未匹配入 `# 未匹配题材`
 3. **模型审查**：脚本末尾列出未匹配标的，模型逐一审查 → 有推荐则移到对应板块并反哺关键词到 `SECTOR_KEYWORDS`
+4. **停跟踪题材**：`EXCLUDED_SECTORS` = `{'AI 应用', '地产', '消费', '光伏', '金融'}`，新标的匹配到这些题材时不入库
+5. **题材分布表**：脚本末尾输出今日涨停板题材分布表（按已有/新增/合计分列），已有标的按其所在板块计数
 
 输出：`log/{日期}_limit_up_data.txt` + `interest_stock_backup.md`（原 `interest_stock.md` 不修改）
+
+**题材去重**：同只股票出现在多个题材时，保留首次出现（有注释优先），其他丢弃。已有标的追加异动原因时关键词去重。**标注规则**：已有标的首次有异动用`（涨停异动：XXX）`，已有标的追加用`（原描述；新原因）`，新标的用`（异动原因完整文本）`。
 
 ## 失败模式（Failure modes）
 

@@ -2,6 +2,7 @@
 todo
 node_modules/
 .DS_Store
+**/.env
 
 # 项目缓存/临时数据
 **/.stock_cache/
@@ -19,6 +20,7 @@ node_modules/
 **/数据/
 **/*.yaml
 **/*.yml
+**/.tencent*
 
 # 已学习文章（原始内容，不计入仓库）
 **/2_已学习文章/
