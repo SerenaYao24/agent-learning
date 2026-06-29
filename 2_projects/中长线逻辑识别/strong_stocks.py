@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-强势标的检测：检查所有自选股近 10 个交易日涨超 5% 的次数，
-≥2 次则记录到 strong_stocks.json，否则从列表中移除。
+强势标的检测：检查所有自选股近 10 个交易日涨超 5% 的天数 ≥2 次，
+且近 5 个交易日涨超 5% 的天数 ≥1 次，则记录到 strong_stocks.json，否则从列表中移除。
 
 输出：strong_stocks.json（按 first_date 降序排列）
 """
@@ -143,12 +143,14 @@ def main():
 
             # 计算每日涨跌幅（%）
             changes = df["close"].pct_change().fillna(0).mul(100).round(2)
-            recent = changes.tail(10).tolist()
+            recent_10 = changes.tail(10).tolist()
+            recent_5 = changes.tail(5).tolist()
 
             # 统计涨超 5% 的天数
-            strong_count = sum(1 for c in recent if c >= 5)
+            strong_count_10 = sum(1 for c in recent_10 if c >= 5)
+            strong_count_5 = sum(1 for c in recent_5 if c >= 5)
 
-            if strong_count >= 2:
+            if strong_count_10 >= 2 and strong_count_5 >= 1:
                 if stock_name in existing_map:
                     # 已在列表中，保留 first_date，更新备注
                     entry = existing_map[stock_name]

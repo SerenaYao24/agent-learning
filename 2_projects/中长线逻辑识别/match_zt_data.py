@@ -9,6 +9,10 @@ from _topic_utils import parse_topic_header, format_topic_header
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 LOG_DIR = os.path.join(PROJECT_DIR, "log")
 INTEREST_PATH = os.path.join(PROJECT_DIR, "interest_stock.md")
+FEIZHULIU_PATH = os.path.join(PROJECT_DIR, "非主流题材.md")
+
+# 属于 非主流题材.md 的板块（新增标的应写入 非主流题材.md，而非 interest_stock.md）
+FEIZHULIU_SECTORS = {'AIDC-电源/发电机', '燃气轮机', 'AIDC-变压器', '机器人', '电力'}
 
 # ============== Concept Group → Sector Priority Mapping ==============
 # 母表标题优先：直接 1:1 映射，忽略异动原因
@@ -83,7 +87,7 @@ SECTOR_KEYWORDS = OrderedDict([
     ('CPU', ['cpu']),
     ('半导体洁净室', ['洁净室']),
     ('金刚石', ['培育钻石', '金刚石散热', '金刚石', '超硬材料']),
-    ('化工', ['化工', '涤纶', 'pta', '化纤', '轮胎', '油脂化学', '表面活性剂', '钛白粉', '染料', '磷酸铁', '草铵膦', '农药原药', 'poe', 'eaa', '三乙胺', '铬盐', '氦气', '页岩气', 'sofc']),
+    ('化工', ['化工', '涤纶', 'pta', '化纤', '轮胎', '油脂化学', '表面活性剂', '钛白粉', '染料', '磷酸铁', '草铵膦', '农药原药', 'poe', 'eaa', '三乙胺', '铬盐', '氦气', '页岩气', 'sofc', '油气']),
     ('物理AI', ['物理ai']),
     ('光伏', ['光伏', '太阳能', '钙钛矿', 'tco']),
 ])
@@ -184,10 +188,23 @@ def main():
     wl_sections, wl_names, section_notes = parse_interest_stock(INTEREST_PATH)
     print(f"   {len(wl_names)} 只标的, {len(wl_sections)} 个板块")
     
-    # Classify
-    in_wl = [s for s in zt_stocks if s['name'] in wl_names]
-    new_stocks = [s for s in zt_stocks if s['name'] not in wl_names]
-    print(f"3. 已在自选: {len(in_wl)}, 新标的: {len(new_stocks)}")
+    # 同时加载非主流题材.md，合并去重
+    feizhuliu_exists = False
+    feizhuliu_names = set()
+    try:
+        feizhuliu_sections, feizhuliu_names, _ = parse_interest_stock(FEIZHULIU_PATH)
+        feizhuliu_exists = True
+        print(f"   非主流题材.md: {len(feizhuliu_names)} 只标的")
+    except FileNotFoundError:
+        print(f"   非主流题材.md 不存在，跳过")
+    
+    # 合并两个文件的已知标的集合
+    all_known_names = wl_names | feizhuliu_names
+    
+    # Classify: 同时检查两个文件
+    in_wl = [s for s in zt_stocks if s['name'] in all_known_names]
+    new_stocks = [s for s in zt_stocks if s['name'] not in all_known_names]
+    print(f"3. 已在自选(含非主流): {len(in_wl)}, 新标的: {len(new_stocks)}")
     
     # Build a map of existing stock -> section + description for append
     stock_section_map = {}  # name -> (section_name, desc)
@@ -199,13 +216,17 @@ def main():
                 stock_section_map[name] = (sec_name, desc, entry_line)
     
     # Match new stocks (exclude untracked sectors)
-    matched = OrderedDict()
+    matched = OrderedDict()        # 写入 interest_stock_backup.md 的新增标的（排除非主流板块）
+    matched_feizhuliu = OrderedDict()  # 应写入 非主流题材.md 的新增标的
     unmatched = []
     excluded_stocks = []
     for s in new_stocks:
         sector = match_sector(s['reason'], s.get('concept_group', ''))
         if sector and sector not in EXCLUDED_SECTORS:
-            matched.setdefault(sector, []).append(s)
+            if sector in FEIZHULIU_SECTORS:
+                matched_feizhuliu.setdefault(sector, []).append(s)
+            else:
+                matched.setdefault(sector, []).append(s)
         elif sector and sector in EXCLUDED_SECTORS:
             excluded_stocks.append(s)
         else:
@@ -294,6 +315,55 @@ def main():
     with open(backup_path, 'w', encoding='utf-8') as f:
         f.write('\n'.join(output))
     
+    # ===== 自动写入 非主流题材.md (matched_feizhuliu 板块的新增标的) =====
+    if matched_feizhuliu and feizhuliu_exists:
+        # 读取当前非主流题材.md 的板块结构
+        fei_sections, fei_names, fei_notes = parse_interest_stock(FEIZHULIU_PATH)
+        fei_output = []
+        fei_written = set()
+        
+        # 写入已有板块
+        for sec_name, entries in fei_sections.items():
+            if sec_name == '未匹配题材':
+                continue
+            fei_output.append(format_topic_header(sec_name, fei_notes.get(sec_name, '')))
+            for entry_line, name, desc in entries:
+                if name not in fei_written:
+                    fei_output.append(entry_line)
+                    fei_written.add(name)
+            # 追加属于该板块的新增标的
+            if sec_name in matched_feizhuliu:
+                for s in matched_feizhuliu[sec_name]:
+                    if s['name'] not in fei_written:
+                        fei_output.append(f"{s['name']}（{s['reason']}）")
+                        fei_written.add(s['name'])
+            fei_output.append('')
+        
+        # 写入新增板块（在非主流题材.md 中还不存在的板块）
+        for sec_name in matched_feizhuliu:
+            if sec_name not in fei_sections:
+                fei_output.append(format_topic_header(sec_name))
+                for s in matched_feizhuliu[sec_name]:
+                    if s['name'] not in fei_written:
+                        fei_output.append(f"{s['name']}（{s['reason']}）")
+                        fei_written.add(s['name'])
+                fei_output.append('')
+        
+        # 保留未匹配题材区
+        orig_unmatched = fei_sections.get('未匹配题材', [])
+        fei_output.append(format_topic_header('未匹配题材'))
+        for entry_line, name, desc in orig_unmatched:
+            if name not in fei_written:
+                fei_output.append(entry_line)
+                fei_written.add(name)
+        fei_output.append('')
+        
+        with open(FEIZHULIU_PATH, 'w', encoding='utf-8') as f:
+            f.write('\n'.join(fei_output))
+        print(f"\n   → 已自动写入 非主流题材.md")
+        for sec, stks in matched_feizhuliu.items():
+            print(f"      [{sec}] +{len(stks)}: {', '.join(s['name'] for s in stks)}")
+    
     # ===== Verification =====
     print(f"\n4. 写入: {backup_path}")
     text = '\n'.join(output)
@@ -343,9 +413,15 @@ def main():
     for sec, stks in matched.items():
         sector_summary.setdefault(sec, {'existing': [], 'new': []})
         sector_summary[sec]['new'].extend(s['name'] for s in stks)
+    # 非主流板块的新增也计入 total 分布，但不写入 interest_stock_backup.md
+    for sec, stks in matched_feizhuliu.items():
+        sector_summary.setdefault(sec, {'existing': [], 'new': []})
+        sector_summary[sec]['new'].extend(s['name'] for s in stks)
     
     total_existing = len(in_wl)
-    total_new_matched = sum(len(v) for v in matched.values())
+    total_new_interest = sum(len(v) for v in matched.values())
+    total_new_feizhuliu = sum(len(v) for v in matched_feizhuliu.values())
+    total_new_matched = total_new_interest + total_new_feizhuliu
     total_new_excluded = len(excluded_stocks)
     
     print(f"\n{'='*60}")
@@ -372,12 +448,20 @@ def main():
     total_new = sum(len(v) for v in matched.values())
     print(f"\n=== 摘要 ===")
     print(f"已在自选(异动原因已追加): {len(in_wl)}")
-    print(f"新增匹配: {total_new}")
+    print(f"新增匹配(interest_stock.md): {total_new_interest}")
+    if matched:
+        for sec, stks in matched.items():
+            print(f"  [{sec}] +{len(stks)}: {', '.join(s['name'] for s in stks)}")
+    if matched_feizhuliu:
+        print(f"新增匹配(非主流题材.md): {total_new_feizhuliu}")
+        for sec, stks in matched_feizhuliu.items():
+            print(f"  [{sec}] +{len(stks)}: {', '.join(s['name'] for s in stks)}")
+        print(f"   → 上述标的已自动写入 非主流题材.md")
     print(f"未匹配: {len(unmatched)}")
-    for sec, stks in matched.items():
-        print(f"  [{sec}] +{len(stks)}: {', '.join(s['name'] for s in stks)}")
     if unmatched:
-        print(f"  [未匹配] {len(unmatched)}: {', '.join(s['name'] for s in unmatched)}")
+        for s in unmatched:
+            print(f"  [未匹配] {s['name']}: {s['reason']}")
+    if unmatched:
         print(f"\n=== 🔍 模型审查（未匹配标的） ===")
         print("请模型逐条审查异动原因，如有推荐板块，直接移至对应 section，禁止输出【建议】标注")
         print()

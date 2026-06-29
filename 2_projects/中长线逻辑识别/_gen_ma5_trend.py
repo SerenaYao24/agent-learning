@@ -169,6 +169,8 @@ for v in sectors.values():
 topic_tags = []
 for sector_name in topic_sector_names:
     sector_stocks = [s for s in stocks if sector_name in s["sectors"]]
+    if not sector_stocks:
+        continue  # 该题材没有标的入围，跳过
     if len(sector_stocks) < 3:
         avg_rank = "-"
     else:
