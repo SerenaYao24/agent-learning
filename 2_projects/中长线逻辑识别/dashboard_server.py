@@ -13,6 +13,7 @@ INDEX_STATE_FILE = os.path.join(DATA_DIR, "index_state.json")
 INDEX_LEVELS_FILE = os.path.join(DATA_DIR, "index_levels.json")
 REVIEW_FILE = os.path.join(DATA_DIR, "review.json")
 REVIEW_META_FILE = os.path.join(DATA_DIR, "review_meta.json")
+STRONG_STOCKS_FILE = os.path.join(DATA_DIR, "strong_stocks.json")
 
 os.makedirs(INDEX_DIR, exist_ok=True)
 
@@ -120,6 +121,9 @@ class DashboardHandler(SimpleHTTPRequestHandler):
             self._json_response(all_data[:5])
         elif path == "/api/review-meta":
             data = read_json(REVIEW_META_FILE, {"market_style":"","personal_state":"","operation_expect":""})
+            self._json_response(data)
+        elif path == "/api/strong-stocks":
+            data = read_json(STRONG_STOCKS_FILE, [])
             self._json_response(data)
         else:
             super().do_GET()
