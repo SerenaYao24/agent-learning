@@ -298,6 +298,7 @@ body{background:#F8FAFC;color:#0F172A;font-family:'Fira Sans',-apple-system,sans
         <span class="select-arrow">▾</span>
       </div>
       <div class="select-options" style="display:none">
+        <div class="select-option" data-value="半导体设备领涨" onclick="selectTechLine('半导体设备领涨')">半导体设备领涨</div>
         <div class="select-option" data-value="大小光领涨" onclick="selectTechLine('大小光领涨')">大小光领涨</div>
         <div class="select-option" data-value="PCB 领涨" onclick="selectTechLine('PCB 领涨')">PCB 领涨</div>
         <div class="select-option" data-value="上游材料领涨" onclick="selectTechLine('上游材料领涨')">上游材料领涨</div>
@@ -332,7 +333,7 @@ body{background:#F8FAFC;color:#0F172A;font-family:'Fira Sans',-apple-system,sans
   <button class="tab-btn" onclick="switchTab('stock')">个股数据</button>
   <button class="tab-btn" onclick="switchTab('block')">大宗交易</button>
   <button class="tab-btn" onclick="switchTab('monitor')">重点监控</button>
-  <button class="tab-btn" onclick="switchTab('strong')">强势标的<span class="tooltip-hint" style="margin-left:4px;vertical-align:middle">?<span class="tooltip-text">近10个交易日涨幅≥5%≥2次 且 近5个交易日涨幅≥5%≥1次</span></span></button>
+  <button class="tab-btn" onclick="switchTab('strong')">强势标的<span class="tooltip-hint" style="margin-left:4px;vertical-align:middle">?<span class="tooltip-text">近10个交易日涨幅≥5%≥2次 且 近5个交易日涨幅≥5%≥1次 且 5日涨幅&gt;5%</span></span></button>
 </div>
 
 <!-- ====== Tab 1: 指数宏观 ====== -->

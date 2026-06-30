@@ -150,7 +150,10 @@ def main():
             strong_count_10 = sum(1 for c in recent_10 if c >= 5)
             strong_count_5 = sum(1 for c in recent_5 if c >= 5)
 
-            if strong_count_10 >= 2 and strong_count_5 >= 1:
+            # 5 日累计涨幅（复权）
+            five_day_return = (df["close"].iloc[-1] / df["close"].iloc[-6] - 1) * 100
+
+            if strong_count_10 >= 2 and strong_count_5 >= 1 and five_day_return > 5:
                 if stock_name in existing_map:
                     # 已在列表中，保留 first_date，更新备注
                     entry = existing_map[stock_name]
