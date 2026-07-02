@@ -703,7 +703,7 @@ tbody td:last-child { padding-right: 1rem; }
         // Header
         const thead = document.createElement('thead');
         const thr = document.createElement('tr');
-        ['公司','业绩','归母同比','归母环比','归母上年(亿)','扣非同比','扣非环比','扣非上年(亿)','原因','舆论','最新'].forEach(h => {
+        ['公司','业绩','归母同比','归母环比','归母上年(亿)','扣非同比','扣非环比','扣非上年(亿)','主营业务','原因','舆论','最新'].forEach(h => {
           const th = document.createElement('th');
           th.textContent = h;
           thr.appendChild(th);
@@ -737,6 +737,8 @@ tbody td:last-child { padding-right: 1rem; }
             // 归母同比/环比/上年
             formatPct(r['归母同比']), formatPct(r['归母环比']), `<span class="${valClass(r['归母上年同期(亿)'])}">${esc(r['归母上年同期(亿)']||'-')}</span>`,
             formatPct(r['扣非同比']), formatPct(r['扣非环比']), `<span class="${valClass(r['扣非上年同期(亿)'])}">${esc(r['扣非上年同期(亿)']||'-')}</span>`,
+            // 主营业务
+            `<div class="td-text">${esc(r['主营业务']||'')}</div>`,
             // 原因
             `<div class="td-text">${esc(r['原因']||'')}</div>`,
             // 舆论

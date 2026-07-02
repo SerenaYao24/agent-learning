@@ -142,7 +142,8 @@ def check_risk_tag(stocks):
             print(f"    - {ds}")
     
     if big_drop_count > 5:
-        tag = "热门股出现亏钱效应"
+        date_str = datetime.now().strftime("%m%d")
+        tag = f"{date_str}：热门股出现亏钱效应"
         print(f"\n  🔴 风险标签: {tag}")
         
         risk_data = {"manual": [], "deleted": []}
