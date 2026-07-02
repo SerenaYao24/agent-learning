@@ -11,8 +11,22 @@ LOG_DIR = os.path.join(PROJECT_DIR, "log")
 INTEREST_PATH = os.path.join(PROJECT_DIR, "interest_stock.md")
 FEIZHULIU_PATH = os.path.join(PROJECT_DIR, "非主流题材.md")
 
-# 属于 非主流题材.md 的板块（新增标的应写入 非主流题材.md，而非 interest_stock.md）
-FEIZHULIU_SECTORS = {'AIDC-电源/发电机', '燃气轮机', 'AIDC-变压器', '机器人', '电力'}
+def get_feizhuliu_sectors():
+    """实时解析 非主流题材.md 的板块标题，避免硬编码"""
+    sectors = set()
+    try:
+        with open(FEIZHULIU_PATH, encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                if line.startswith('# '):
+                    topic = line[2:].strip()
+                    if '（' in topic:
+                        topic = topic.split('（')[0].strip()
+                    if topic:
+                        sectors.add(topic)
+    except FileNotFoundError:
+        pass
+    return sectors
 
 # ============== Concept Group → Sector Priority Mapping ==============
 # 母表标题优先：直接 1:1 映射，忽略异动原因
@@ -42,7 +56,7 @@ BROAD_GROUP_SECTORS = {
     ],
 }
 # 不再跟踪的题材（新标的不会加入自选）
-EXCLUDED_SECTORS = {'AI 应用', '地产', '消费', '光伏', '小金属/贵金属'}
+EXCLUDED_SECTORS = {'地产', '消费', '光伏'}
 
 SECTOR_KEYWORDS = OrderedDict([
     ('CPO', ['cpo', '光引擎']),
@@ -54,7 +68,7 @@ SECTOR_KEYWORDS = OrderedDict([
     ('PCB 钻针', ['钻针']),
     ('PCB 铜箔/覆铜板', ['覆铜板', '铜箔', 'ccl']),
     ('PCB', ['pcb', 'hdi', '印制电路板', 'cbf', '玻纤', '玻璃纤维', 'msap', '载板', '陶瓷方案']),
-    ('液冷', ['液冷', '冷却液', '氟化冷却', '散热', '数据中心阀门']),
+    ('液冷', ['液冷', '冷却液', '氟化冷却', '散热', '数据中心阀门', '数据中心']),
     ('先进封装', ['先进封装', '封装材料', '顺酐酸酐', '封装测试', 'led封装', '陶瓷基板', '压电陶瓷', '氧化锆']),
     ('玻璃基板', ['玻璃基板', '硼硅', '玻璃基封装', '半导体显示', '光学玻璃', '玻璃']),
     ('电阻电容', ['电容', '被动元件', '电极箔', '超级电容', 'mlpc', '薄膜电容器']),
@@ -217,6 +231,7 @@ def main():
                 stock_section_map[name] = (sec_name, desc, entry_line)
     
     # Match new stocks (exclude untracked sectors)
+    feizhuliu_sectors = get_feizhuliu_sectors()
     matched = OrderedDict()        # 写入 interest_stock_backup.md 的新增标的（排除非主流板块）
     matched_feizhuliu = OrderedDict()  # 应写入 非主流题材.md 的新增标的
     unmatched = []
@@ -224,7 +239,7 @@ def main():
     for s in new_stocks:
         sector = match_sector(s['reason'], s.get('concept_group', ''))
         if sector and sector not in EXCLUDED_SECTORS:
-            if sector in FEIZHULIU_SECTORS:
+            if sector in feizhuliu_sectors:
                 matched_feizhuliu.setdefault(sector, []).append(s)
             else:
                 matched.setdefault(sector, []).append(s)
