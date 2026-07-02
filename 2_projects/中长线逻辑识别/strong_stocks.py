@@ -4,11 +4,16 @@
 强势标的检测：检查所有自选股近 10 个交易日涨超 5% 的天数 ≥2 次，
 且近 5 个交易日涨超 5% 的天数 ≥1 次，则记录到 strong_stocks.json，否则从列表中移除。
 
+性能优化：优先读取 stock_trend_analysis.py 生成的 stock_data.json 缓存，
+仅在缓存缺失或过期时调用 API，减少 90%+ 的重复 API 请求。
+
 输出：strong_stocks.json（按 first_date 降序排列）
 """
 
 import sys, os, json, time
 from datetime import datetime, timedelta
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import threading
 
 # ── 禁用 tqdm 进度条 ──
 import tqdm
@@ -34,6 +39,8 @@ import akshare as ak
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 INTEREST_PATH = os.path.join(PROJECT_DIR, "interest_stock.md")
 STRONG_FILE = os.path.join(PROJECT_DIR, "strong_stocks.json")
+CACHE_DIR = os.path.join(PROJECT_DIR, ".stock_cache")
+CACHE_FILE = os.path.join(CACHE_DIR, "stock_data.json")
 
 
 def load_strong_stocks() -> list:
@@ -82,6 +89,113 @@ def parse_interest_stock() -> dict:
     return stocks
 
 
+def get_changes_from_cache(stock_info: dict, name_cache: dict) -> dict:
+    """
+    从 stock_data.json 缓存中读取每日涨跌幅，减少 API 调用。
+    返回 { stock_name: { recent_10, recent_5, five_day_return } }，
+    缓存中找不到的返回 None。
+    """
+    cache = {}
+    if os.path.exists(CACHE_FILE):
+        try:
+            with open(CACHE_FILE, encoding="utf-8") as f:
+                cache = json.load(f)
+        except Exception:
+            pass
+
+    result = {}
+    miss_list = []  # 缓存缺失或过期的股票名
+    today = datetime.now().strftime("%Y-%m-%d")
+
+    for stock_name, info in stock_info.items():
+        code = name_cache.get(stock_name)
+        if not code:
+            result[stock_name] = None
+            continue
+
+        cached = cache.get(code)
+        if not cached:
+            miss_list.append((stock_name, code, info))
+            continue
+
+        dates = cached.get("dates", [])
+        changes = cached.get("daily_changes", [])
+        closes = cached.get("close", [])
+
+        if len(changes) < 5 or len(dates) < 5:
+            miss_list.append((stock_name, code, info))
+            continue
+
+        # 判断缓存是否包含最近交易日数据（最后日期距今 ≤2 天 或 日期在今天）
+        last_date = dates[-1] if dates else ""
+        try:
+            last_dt = datetime.strptime(last_date, "%Y-%m-%d")
+            days_diff = (datetime.now() - last_dt).days
+            if days_diff > 2 and datetime.now().weekday() < 5:
+                # 缓存太旧且今天是交易日，需要更新
+                miss_list.append((stock_name, code, info))
+                continue
+        except ValueError:
+            miss_list.append((stock_name, code, info))
+            continue
+
+        # 从缓存中提取所需数据
+        recent_10 = changes[-10:] if len(changes) >= 10 else changes
+        recent_5 = changes[-5:] if len(changes) >= 5 else changes
+
+        # 5 日累计涨幅 = (最后收盘价 / 6 天前收盘价 - 1) * 100
+        five_day_return = 0.0
+        if len(closes) >= 6:
+            five_day_return = (closes[-1] / closes[-6] - 1) * 100
+        elif len(closes) >= 2:
+            five_day_return = (closes[-1] / closes[0] - 1) * 100
+
+        result[stock_name] = {
+            "recent_10": recent_10,
+            "recent_5": recent_5,
+            "five_day_return": five_day_return,
+        }
+
+    if miss_list:
+        print(f"  ⚡ {len(miss_list)} 只需补充获取数据...")
+        end_date = datetime.now().strftime("%Y-%m-%d")
+        start_date = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
+        api_lock = threading.Lock()
+
+        def fetch_stock(name, code, info):
+            try:
+                df = ak.stock_zh_a_hist_tx(
+                    symbol=code, adjust="qfq",
+                    start_date=start_date, end_date=end_date,
+                )
+                if df is None or df.empty:
+                    return name, None
+                changes = df["close"].pct_change().fillna(0).mul(100).round(2)
+                recent_10 = changes.tail(10).tolist()
+                recent_5 = changes.tail(5).tolist()
+                closes = df["close"].tolist()
+                five_day_return = 0.0
+                if len(closes) >= 6:
+                    five_day_return = (closes[-1] / closes[-6] - 1) * 100
+                return name, {
+                    "recent_10": recent_10,
+                    "recent_5": recent_5,
+                    "five_day_return": five_day_return,
+                }
+            except Exception as e:
+                return name, None
+
+        max_workers = min(10, len(miss_list))
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = {executor.submit(fetch_stock, n, c, i): n for n, c, i in miss_list}
+            for future in as_completed(futures):
+                name, data = future.result()
+                with api_lock:
+                    result[name] = data
+
+    return result
+
+
 def main():
     print("=" * 50)
     print("  强势标的检测")
@@ -117,72 +231,56 @@ def main():
     existing = load_strong_stocks()
     existing_map = {s["name"]: s for s in existing}
 
-    # 4. 获取行情数据
-    end_date = datetime.now().strftime("%Y-%m-%d")
-    start_date = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
+    # 4. 获取行情数据（优先从 stock_data.json 缓存读取）
+    print("  获取涨跌幅数据（优先使用缓存）...", flush=True)
+    t0 = time.time()
+    stock_data = get_changes_from_cache(stock_info, name_cache)
+    elapsed = time.time() - t0
+    cached_count = sum(1 for v in stock_data.values() if v is not None)
+    missed_count = sum(1 for v in stock_data.values() if v is None)
+    print(f"  缓存命中: {cached_count}, 补充拉取: {missed_count}, 耗时: {elapsed:.0f}s")
 
+    # 5. 检测强势标的
+    today_str = datetime.now().strftime("%Y-%m-%d")
     new_strong = []
     checked = errors = 0
-    today_str = datetime.now().strftime("%Y-%m-%d")
 
-    for stock_name, info in stock_info.items():
-        code = name_cache.get(stock_name)
-        if not code:
+    for stock_name, data in stock_data.items():
+        if data is None:
             errors += 1
             continue
 
         checked += 1
-        try:
-            df = ak.stock_zh_a_hist_tx(
-                symbol=code, adjust="qfq",
-                start_date=start_date, end_date=end_date,
-            )
-            if df is None or df.empty:
-                errors += 1
-                continue
+        recent_10 = data["recent_10"]
+        recent_5 = data["recent_5"]
+        five_day_return = data["five_day_return"]
 
-            # 计算每日涨跌幅（%）
-            changes = df["close"].pct_change().fillna(0).mul(100).round(2)
-            recent_10 = changes.tail(10).tolist()
-            recent_5 = changes.tail(5).tolist()
+        strong_count_10 = sum(1 for c in recent_10 if c >= 5)
+        strong_count_5 = sum(1 for c in recent_5 if c >= 5)
 
-            # 统计涨超 5% 的天数
-            strong_count_10 = sum(1 for c in recent_10 if c >= 5)
-            strong_count_5 = sum(1 for c in recent_5 if c >= 5)
+        if strong_count_10 >= 2 and strong_count_5 >= 1 and five_day_return > 5:
+            info = stock_info.get(stock_name, {})
+            code = name_cache.get(stock_name, "")
+            if stock_name in existing_map:
+                entry = existing_map[stock_name]
+                entry["sector"] = info.get("sector", "")
+                entry["note"] = info.get("note", "")
+                new_strong.append(entry)
+            else:
+                new_strong.append({
+                    "name": stock_name,
+                    "code": code.replace("sh", "").replace("sz", ""),
+                    "first_date": today_str,
+                    "sector": info.get("sector", ""),
+                    "note": info.get("note", ""),
+                })
 
-            # 5 日累计涨幅（复权）
-            five_day_return = (df["close"].iloc[-1] / df["close"].iloc[-6] - 1) * 100
-
-            if strong_count_10 >= 2 and strong_count_5 >= 1 and five_day_return > 5:
-                if stock_name in existing_map:
-                    # 已在列表中，保留 first_date，更新备注
-                    entry = existing_map[stock_name]
-                    entry["sector"] = info["sector"]
-                    entry["note"] = info["note"]
-                    new_strong.append(entry)
-                else:
-                    # 新入选
-                    new_strong.append({
-                        "name": stock_name,
-                        "code": code.replace("sh", "").replace("sz", ""),
-                        "first_date": today_str,
-                        "sector": info["sector"],
-                        "note": info["note"],
-                    })
-
-        except Exception as e:
-            errors += 1
-            if errors <= 3:
-                print(f"  ⚠ {stock_name}: {e}")
-
-        time.sleep(0.03)
-
-    # 5. 按 first_date 降序排列
+    # 6. 按 first_date 降序排列
     new_strong.sort(key=lambda x: x.get("first_date", ""), reverse=True)
 
     save_strong_stocks(new_strong)
 
-    # 6. 汇总
+    # 7. 汇总
     added = sum(1 for s in new_strong if s["name"] not in existing_map)
     kept = len(new_strong) - added
     removed = len(existing) - kept

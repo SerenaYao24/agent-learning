@@ -239,6 +239,32 @@ body{background:#F8FAFC;color:#0F172A;font-family:'Fira Sans',-apple-system,sans
 .server-banner.show{display:flex}
 .server-banner svg{width:16px;height:16px;flex-shrink:0}
 .server-banner code{background:#FFF;padding:2px 6px;border-radius:4px;font-size:12px;border:1px solid #FECACA;font-family:monospace}
+
+/* Hot rank tab */
+.hot-header{display:flex;gap:16px;align-items:center;padding:8px 0 12px;flex-wrap:wrap}
+.hot-header .hot-date{font-size:12px;color:#64748B}
+.hot-header .hot-summary{font-size:12px;color:#0F172A;display:flex;gap:12px}
+.hot-header .hot-summary .stat{display:flex;align-items:center;gap:4px}
+.hot-header .hot-summary .stat.up{color:#ef4444}
+.hot-header .hot-summary .stat.down{color:#15803D}
+.hot-header .hot-risk-badge{padding:4px 12px;border-radius:12px;font-size:11px;background:#FFF7ED;color:#C2410C;border:1px solid #FED7AA;font-weight:600}
+.hot-cards-wrap{display:flex;gap:16px;min-height:400px}
+.hot-card{flex:1;border-radius:10px;padding:14px;overflow-y:auto;max-height:620px;border:1px solid #E2E8F0}
+.hot-card-up{background:#FEF2F2;border-color:#FECACA}
+.hot-card-down{background:#F0FDF4;border-color:#BBF7D0}
+.hot-card-title{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:#0F172A;padding-bottom:10px;border-bottom:1px solid rgba(0,0,0,.06);margin-bottom:8px}
+.hot-card-count{font-size:11px;color:#64748B;font-weight:400;margin-left:4px}
+.hot-card-body{display:flex;flex-direction:column;gap:4px}
+.hot-stock-row{display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:6px;transition:background .15s;cursor:default}
+.hot-stock-row:hover{background:rgba(255,255,255,.7)}
+.hot-stock-rank{font-size:11px;font-weight:700;color:#94A3B8;width:28px;text-align:center;border-radius:4px;background:rgba(0,0,0,.04)}
+.hot-stock-rank.top3{color:#ef4444;background:#FEF2F2;font-weight:700}
+.hot-stock-rank.top3down{color:#15803D;background:#DCFCE7;font-weight:700}
+.hot-stock-name{font-size:13px;font-weight:600;color:#0F172A;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hot-stock-code{font-size:11px;color:#64748B;font-weight:400}
+.hot-stock-chg{font-size:13px;font-weight:600;min-width:60px;text-align:right}
+.hot-stock-chg.up{color:#ef4444}
+.hot-stock-chg.down{color:#15803D}
 </style>
 </head>
 <body>
@@ -334,6 +360,7 @@ body{background:#F8FAFC;color:#0F172A;font-family:'Fira Sans',-apple-system,sans
   <button class="tab-btn" onclick="switchTab('block')">大宗交易</button>
   <button class="tab-btn" onclick="switchTab('monitor')">重点监控</button>
   <button class="tab-btn" onclick="switchTab('strong')">强势标的<span class="tooltip-hint" style="margin-left:4px;vertical-align:middle">?<span class="tooltip-text">近10个交易日涨幅≥5%≥2次 且 近5个交易日涨幅≥5%≥1次 且 5日涨幅&gt;5%</span></span></button>
+  <button class="tab-btn" onclick="switchTab('hot')">热门标的</button>
 </div>
 
 <!-- ====== Tab 1: 指数宏观 ====== -->
@@ -405,6 +432,29 @@ body{background:#F8FAFC;color:#0F172A;font-family:'Fira Sans',-apple-system,sans
       </tr></thead>
       <tbody id="strong-table-body"></tbody>
     </table>
+  </div>
+</div>
+
+<!-- ====== Tab 9: 热门标的 ====== -->
+<div class="tab-pane" id="tab-hot">
+  <div class="hot-header" id="hot-header"></div>
+  <div class="hot-cards-wrap">
+    <div class="hot-card hot-card-up" id="hot-card-up">
+      <div class="hot-card-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;color:#ef4444"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/></svg>
+        <span>上涨标的</span>
+        <span class="hot-card-count" id="hot-up-count">0 只</span>
+      </div>
+      <div class="hot-card-body" id="hot-up-body"></div>
+    </div>
+    <div class="hot-card hot-card-down" id="hot-card-down">
+      <div class="hot-card-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;color:#15803D"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/></svg>
+        <span>下跌标的</span>
+        <span class="hot-card-count" id="hot-down-count">0 只</span>
+      </div>
+      <div class="hot-card-body" id="hot-down-body"></div>
+    </div>
   </div>
 </div>
 
@@ -545,6 +595,7 @@ function switchTab(name) {
     if (name==='block') buildBlockTable();
     if (name==='monitor') buildMonitorTab();
     if (name==='strong') buildStrongTab();
+    if (name==='hot') buildHotTab();
   }
 }
 
@@ -1817,6 +1868,10 @@ function escHtml(s) {
 function escJs(s) {
   return s.replace(/'/g,"\'").replace(/"/g,'&quot;');
 }
+function stockEastmoneyUrl(code, name) {
+  var prefix = (code && code.charAt(0) === '6') ? 'sh' : 'sz';
+  return 'https://quote.eastmoney.com/concept/' + prefix + code + '.html';
+}
 
 // ========== 强势标的 ==========
 function buildStrongTab() {
@@ -1838,7 +1893,7 @@ function renderStrongTable(data) {
   data.forEach(function(r){
     var note = (r.note || '').replace(/[（(]/,'').replace(/[）)]$/,'');
     h += '<tr>'
-      + '<td style="font-weight:600;color:#0F172A">' + escHtml(r.name || '') + '</td>'
+      + '<td style="font-weight:600;color:#0F172A"><a href="' + stockEastmoneyUrl(r.code || '', r.name || '') + '" target="_blank" style="color:inherit;text-decoration:none" title="在东方财富查看">' + escHtml(r.name || '') + '</a></td>'
       + '<td style="color:#64748B">' + escHtml(r.code || '') + '</td>'
       + '<td>' + escHtml(r.first_date || '') + '</td>'
       + '<td style="color:#2563EB">' + escHtml(r.sector || '') + '</td>'
@@ -1846,6 +1901,95 @@ function renderStrongTable(data) {
       + '</tr>';
   });
   el.innerHTML = h;
+}
+
+
+// ========== 热门标的 ==========
+var _hotData = null;
+function buildHotTab() {
+  fetch('/api/hot-rank').then(function(r){return r.json();}).then(function(d){
+    _hotData = d || {};
+    renderHotTab(_hotData);
+  }).catch(function(){
+    renderHotTab({stocks:[]});
+  });
+}
+
+function renderHotTab(data) {
+  var stocks = data.stocks || [];
+  var dateStr = data.date || '—';
+  var updateTime = data.update_time || '';
+  var upCount = data.up_count || 0;
+  var downCount = data.down_count || 0;
+  var bigDropCount = data.big_drop_count || 0;
+
+  // 分离上涨和下跌
+  var upStocks = stocks.filter(function(s){ return s.chg_pct > 0; })
+    .sort(function(a,b){ return b.chg_pct - a.chg_pct; });
+  var downStocks = stocks.filter(function(s){ return s.chg_pct < 0; })
+    .sort(function(a,b){ return a.chg_pct - b.chg_pct; }); // 跌得越多越靠前
+  var flatStocks = stocks.filter(function(s){ return s.chg_pct === 0; });
+
+  // Header
+  var headerEl = document.getElementById('hot-header');
+  if (headerEl) {
+    var h = '<span class="hot-date">数据日期: ' + dateStr + (updateTime ? ' ' + updateTime : '') + '</span>';
+    h += '<span class="hot-summary">';
+    h += '<span class="stat up">上涨 ' + upCount + ' 只</span>';
+    h += '<span class="stat down">下跌 ' + downCount + ' 只</span>';
+    if (bigDropCount > 0) {
+      h += '<span class="stat down">跌幅超-8%: ' + bigDropCount + ' 只</span>';
+    }
+    h += '</span>';
+    if (bigDropCount > 5) {
+      h += '<span class="hot-risk-badge">⚠ 热门股出现亏钱效应</span>';
+    }
+    headerEl.innerHTML = h;
+  }
+
+  // 上涨卡片
+  document.getElementById('hot-up-count').textContent = upStocks.length + ' 只';
+  var upEl = document.getElementById('hot-up-body');
+  if (upEl) {
+    if (upStocks.length === 0) {
+      upEl.innerHTML = '<div style="text-align:center;padding:40px 0;color:#94A3B8;font-size:13px">今日无上涨热门标的</div>';
+    } else {
+      var upH = '';
+      upStocks.forEach(function(s) {
+        var chgStr = (s.chg_pct >= 0 ? '+' : '') + s.chg_pct.toFixed(2) + '%';
+        var rankCls = s.rank <= 3 ? ' top3' : '';
+        upH += '<div class="hot-stock-row">';
+        upH += '<span class="hot-stock-rank' + rankCls + '">' + s.rank + '</span>';
+        upH += '<span class="hot-stock-name"><a href="' + stockEastmoneyUrl(s.code || '', s.name || '') + '" target="_blank" style="color:inherit;text-decoration:none" title="在东方财富查看">' + escHtml(s.name || '') + '</a></span>';
+        upH += '<span class="hot-stock-code">' + escHtml(s.code || '') + '</span>';
+        upH += '<span class="hot-stock-chg up">' + chgStr + '</span>';
+        upH += '</div>';
+      });
+      upEl.innerHTML = upH;
+    }
+  }
+
+  // 下跌卡片
+  document.getElementById('hot-down-count').textContent = downStocks.length + ' 只';
+  var downEl = document.getElementById('hot-down-body');
+  if (downEl) {
+    if (downStocks.length === 0) {
+      downEl.innerHTML = '<div style="text-align:center;padding:40px 0;color:#94A3B8;font-size:13px">今日无下跌热门标的</div>';
+    } else {
+      var downH = '';
+      downStocks.forEach(function(s) {
+        var chgStr = (s.chg_pct >= 0 ? '+' : '') + s.chg_pct.toFixed(2) + '%';
+        var rankCls = s.rank <= 3 ? ' top3down' : '';
+        downH += '<div class="hot-stock-row">';
+        downH += '<span class="hot-stock-rank' + rankCls + '">' + s.rank + '</span>';
+        downH += '<span class="hot-stock-name"><a href="' + stockEastmoneyUrl(s.code || '', s.name || '') + '" target="_blank" style="color:inherit;text-decoration:none" title="在东方财富查看">' + escHtml(s.name || '') + '</a></span>';
+        downH += '<span class="hot-stock-code">' + escHtml(s.code || '') + '</span>';
+        downH += '<span class="hot-stock-chg down">' + chgStr + '</span>';
+        downH += '</div>';
+      });
+      downEl.innerHTML = downH;
+    }
+  }
 }
 
 
