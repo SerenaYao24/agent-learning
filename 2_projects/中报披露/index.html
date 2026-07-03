@@ -928,7 +928,7 @@ tbody td:last-child { padding-right: 1rem; }
 
   // ── Load CSV ──
   try {
-    const resp = await fetch(CSV_PATH);
+    const resp = await fetch(CSV_PATH + '?t=' + Date.now());
     if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
     const text = await resp.text();
     const data = parseCSV(text);
