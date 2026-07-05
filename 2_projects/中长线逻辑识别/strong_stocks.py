@@ -258,7 +258,7 @@ def main():
         strong_count_10 = sum(1 for c in recent_10 if c >= 5)
         strong_count_5 = sum(1 for c in recent_5 if c >= 5)
 
-        if strong_count_10 >= 2 and strong_count_5 >= 1 and five_day_return > 5:
+        if strong_count_10 >= 2 and strong_count_5 >= 1 and five_day_return > 5 and recent_5[-1] > 0:
             info = stock_info.get(stock_name, {})
             code = name_cache.get(stock_name, "")
             if stock_name in existing_map:

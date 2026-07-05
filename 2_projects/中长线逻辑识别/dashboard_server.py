@@ -13,6 +13,7 @@ INDEX_STATE_FILE = os.path.join(DATA_DIR, "index_state.json")
 INDEX_LEVELS_FILE = os.path.join(DATA_DIR, "index_levels.json")
 REVIEW_FILE = os.path.join(DATA_DIR, "review.json")
 REVIEW_META_FILE = os.path.join(DATA_DIR, "review_meta.json")
+TRACK_SECTORS_FILE = os.path.join(DATA_DIR, "track_sectors.json")
 STRONG_STOCKS_FILE = os.path.join(DATA_DIR, "strong_stocks.json")
 HOT_RANK_FILE = os.path.join(INDEX_DIR, "ths_hot_rank.json")
 
@@ -123,6 +124,9 @@ class DashboardHandler(SimpleHTTPRequestHandler):
         elif path == "/api/review-meta":
             data = read_json(REVIEW_META_FILE, {"market_style":"","personal_state":"","operation_expect":""})
             self._json_response(data)
+        elif path == "/api/track-sectors":
+            data = read_json(TRACK_SECTORS_FILE, {})
+            self._json_response(data)
         elif path == "/api/strong-stocks":
             data = read_json(STRONG_STOCKS_FILE, [])
             self._json_response(data)
@@ -204,6 +208,13 @@ class DashboardHandler(SimpleHTTPRequestHandler):
             try:
                 data = json.loads(body)
                 write_json(REVIEW_META_FILE, data)
+                self._json_response({"ok": True})
+            except Exception as e:
+                self._json_response({"ok": False, "error": str(e)}, 400)
+        elif path == "/api/track-sectors":
+            try:
+                data = json.loads(body)
+                write_json(TRACK_SECTORS_FILE, data)
                 self._json_response({"ok": True})
             except Exception as e:
                 self._json_response({"ok": False, "error": str(e)}, 400)

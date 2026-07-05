@@ -71,6 +71,22 @@
 - **决策**：维护 HARDCODED_MAP 字典覆盖名称→代码的自动映射，避免名称歧义（如"光电股份"自动映射可能不准）。
 - **触发条件**：测试阶段发现 5 只光纤板块股票无数据，根源是代码映射缺失——通鼎互联、新能泰山、光电股份等在 stock_code_map.json 中无记录。
 
+### 决策 13：板块跟踪 alert 数据源使用 top_list.md
+- **决策**：板块数据 tab 的"是否跟踪"功能中，`computeTrackAlert()` 基于前端 `STOCK_MAP` 计算标的涨幅。`STOCK_MAP` 的数据源是 `top_list.md`（每题材近10日涨幅前15的筛选版本），而非 `interest_stock.md`（全量标的）。
+- **数据链路**：
+  ```
+  interest_stock.md (全量，431 标的，机器人 80 个)
+     ↕  stock_trend_analysis.py → generate_top_list()
+     ↕  每题材取近10日涨幅前15，排除非活跃/僵尸股
+  top_list.md (筛选后，324 标的，每题材 ≤15)
+     ↕  load_watched_stocks() → load_stock_ohlcv_readonly()
+  STOCK_MAP (前端 JS 变量，含 pct[今日涨幅]、cum5d 等)
+     ↕  computeTrackAlert()
+  是否跟踪列 (alert 标签 & 行底色)
+  ```
+- **理由**：top_list 已排除僵尸股和长期不活跃标的，反映的是题材活跃标的的真实涨跌情况，避免仓位少或无意义的僵尸股拖拽判断。
+- **约束**：如果 `top_list.md` 不存在，回退到 `interest_stock.md`（含全量标的，包括僵尸股）。top_list 由 `generate_top_list()` 在每次数据获取后自动更新。
+
 ## 关键试错（Key trials）
 
 ### 试错 1：公式探索过程

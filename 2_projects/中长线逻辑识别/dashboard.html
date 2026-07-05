@@ -31,13 +31,15 @@ body{background:#F8FAFC;color:#0F172A;font-family:'Fira Sans',-apple-system,sans
 .value.down{color:#15803D}
 .indicator .sub{font-size:12px;color:#2563EB;margin-top:2px}
 .risk-tags{display:flex;gap:8px;padding:8px 24px 14px;flex-wrap:wrap}
-.risk-tag{padding:4px 12px;border-radius:12px;font-size:11px;background:#FFF7ED;color:#C2410C;border:1px solid #FED7AA;display:inline-flex;align-items:center;gap:4px;cursor:default}
-.risk-tag .del{cursor:pointer;color:#EA580C;margin-left:2px;font-weight:700;line-height:1}
-.risk-tag .del:hover{color:#ef4444}
-.risk-tag-add{padding:4px 10px;border-radius:12px;font-size:11px;background:transparent;color:#C2410C;border:1px dashed #FED7AA;cursor:pointer;font-family:inherit}
-.risk-tag-add:hover{background:#FFF7ED}
+.risk-tag{padding:4px 12px;border-radius:12px;font-size:11px;background:#FEF2F2;color:#DC2626;border:1px solid #FECACA;display:inline-flex;align-items:center;gap:4px;cursor:default}
+.risk-tag .tag-text{cursor:pointer}
+.risk-tag .del{cursor:pointer;color:#EF4444;margin-left:2px;font-weight:700;line-height:1}
+.risk-tag .del:hover{color:#B91C1C}
+.risk-tag-add{padding:4px 10px;border-radius:12px;font-size:11px;background:transparent;color:#DC2626;border:1px dashed #FECACA;cursor:pointer;font-family:inherit}
+.risk-tag-add:hover{background:#FEF2F2}
 .opp-tags{display:flex;gap:8px;padding:8px 24px 14px;flex-wrap:wrap}
 .opp-tag{padding:4px 12px;border-radius:12px;font-size:11px;background:#F0FDF4;color:#15803D;border:1px solid #BBF7D0;display:inline-flex;align-items:center;gap:4px;cursor:default}
+.opp-tag .tag-text{cursor:pointer}
 .opp-tag .del{cursor:pointer;color:#16A34A;margin-left:2px;font-weight:700;line-height:1}
 .opp-tag .del:hover{color:#ef4444}
 .opp-tag-add{padding:4px 10px;border-radius:12px;font-size:11px;background:transparent;color:#15803D;border:1px dashed #BBF7D0;cursor:pointer;font-family:inherit}
@@ -141,6 +143,32 @@ body{background:#F8FAFC;color:#0F172A;font-family:'Fira Sans',-apple-system,sans
 .rank-tag.up{background:#F0FDF4;color:#15803D;border:1px solid #BBF7D0}
 .rank-tag.down{background:#FFF7ED;color:#C2410C;border:1px solid #FED7AA}
 .rank-tag.none{background:transparent;color:#94A3B8;border:1px dashed #CBD5E1}
+
+/* Track toggle & alert */
+.track-toggle{position:relative;display:inline-block;width:32px;height:18px;vertical-align:middle}
+.track-toggle input{opacity:0;width:0;height:0}
+.track-toggle .slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#CBD5E1;transition:.3s;border-radius:18px}
+.track-toggle .slider:before{position:absolute;content:"";height:12px;width:12px;left:3px;bottom:3px;background:#fff;transition:.3s;border-radius:50%}
+.track-toggle input:checked + .slider{background:#2563EB}
+.track-toggle input:checked + .slider:before{transform:translateX(14px)}
+.track-logic{font-size:11px;color:#475569;margin-top:3px;cursor:text;line-height:1.4;word-break:break-all}
+.sector-row.alert-gt5 .track-logic,.sector-row.alert-gt3 .track-logic{color:#475569}
+.track-logic:hover{color:#2563EB;text-decoration:underline}
+.sector-row.alert-gt5 .track-logic:hover,.sector-row.alert-gt3 .track-logic:hover{color:#2563EB;text-decoration:underline}
+.track-alert-tag{display:inline-flex;align-items:center;padding:1px 6px;border-radius:8px;font-size:9px;font-weight:500;color:#fff;white-space:nowrap}
+.track-edit-area{width:100%;min-height:50px;font-size:11px;padding:4px;border:1px solid #CBD5E1;border-radius:4px;resize:vertical;font-family:inherit;box-sizing:border-box}
+.track-edit-btns{margin-top:4px;display:flex;gap:4px}
+.track-edit-btns button{padding:2px 10px;border-radius:4px;font-size:11px;cursor:pointer;border:1px solid #CBD5E1;background:#fff;color:#475569;font-family:inherit}
+.track-edit-btns .save{background:#2563EB;color:#fff;border-color:#2563EB}
+.track-edit-btns .save:hover{background:#1D4ED8}
+.track-edit-btns .cancel:hover{background:#F1F5F9}
+.sector-row.tracked td{background:#FFF5EE}
+.sector-row.alert-gt5 td{background:#FFCCBC}
+.sector-row.alert-gt3 td{background:#FBE9E7}
+.sector-row.tracked:hover td{background:#FFE4D6 !important}
+.sector-row.alert-gt5:hover td{background:#FFAB91 !important}
+.sector-row.alert-gt3:hover td{background:#F3D8D4 !important}
+.track-cell{cursor:default;min-width:140px}
 
 /* Review Drawer — polished */
 .drawer-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,.35);z-index:200;display:none;backdrop-filter:blur(2px)}
@@ -387,6 +415,7 @@ body{background:#F8FAFC;color:#0F172A;font-family:'Fira Sans',-apple-system,sans
         <th data-col="ret_5d" onclick="sortSector('ret_5d')">近5日涨幅<span class="sort-arrow">⇅</span></th>
         <th data-col="gt5_pct" onclick="sortSector('gt5_pct')">涨超5%占比<span class="sort-arrow">⇅</span></th>
         <th>明星标的</th>
+        <th style="cursor:pointer;user-select:none" onclick="toggleTrackFilter()" title="仅显示跟踪题材">是否跟踪 <span id="track-filter-indicator" style="font-size:14px;color:#94A3B8;line-height:1;vertical-align:middle;margin-left:2px">☐</span></th>
       </tr></thead>
       <tbody id="sector-table-body"></tbody>
     </table>
@@ -488,14 +517,25 @@ function renderRiskTags() {
   all.forEach(function(t){
     var span = document.createElement('span');
     span.className = 'risk-tag';
-    span.innerHTML = t + '<span class="del" data-tag="'+t+'" onclick="deleteRiskTag(this)">×</span>';
+    var txt = document.createElement('span');
+    txt.className = 'tag-text';
+    txt.textContent = t;
+    txt.title = '双击编辑';
+    txt.ondblclick = function(){ editTag(this, _riskState, saveRiskState, renderRiskTags, '风险'); };
+    span.appendChild(txt);
+    var del = document.createElement('span');
+    del.className = 'del';
+    del.textContent = '×';
+    del.setAttribute('data-tag', t);
+    del.onclick = function(){ deleteRiskTag(this); };
+    span.appendChild(del);
     el.appendChild(span);
   });
   var btn = document.createElement('button');
   btn.className = 'risk-tag-add';
   btn.textContent = '+';
   el.appendChild(btn);
-  btn.onclick = function(){ var inp=document.createElement('input'); inp.type='text'; inp.placeholder='风险标签'; inp.style.cssText='width:80px;background:#FFF;color:#C2410C;border:1px solid #FED7AA;border-radius:8px;padding:2px 8px;font-size:11px;margin-left:4px;outline:none'; inp.onblur=function(){ var v=inp.value.trim(); inp.remove(); if(v) addRiskTag(v); }; inp.onkeydown=function(e){ if(e.key==='Enter'){ var v=inp.value.trim(); inp.remove(); if(v) addRiskTag(v); }}; el.appendChild(inp); setTimeout(function(){inp.focus();},50); };
+  btn.onclick = function(){ var inp=document.createElement('input'); inp.type='text'; inp.placeholder='风险标签'; inp.style.cssText='width:80px;background:#FEF2F2;color:#DC2626;border:1px solid #FECACA;border-radius:8px;padding:2px 8px;font-size:11px;margin-left:4px;outline:none'; inp.onblur=function(){ var v=inp.value.trim(); inp.remove(); if(v) addRiskTag(v); }; inp.onkeydown=function(e){ if(e.key==='Enter'){ var v=inp.value.trim(); inp.remove(); if(v) addRiskTag(v); }}; el.appendChild(inp); setTimeout(function(){inp.focus();},50); };
 }
 
 function addRiskTag(tag) {
@@ -517,6 +557,35 @@ function deleteRiskTag(el) {
   }
   saveRiskState(_riskState);
   renderRiskTags();
+}
+
+// ========== 标签编辑 ==========
+function editTag(txtEl, state, saveFn, renderFn, label) {
+  var oldTag = txtEl.textContent;
+  var inp = document.createElement('input');
+  inp.type = 'text';
+  inp.value = oldTag;
+  var w = Math.max(oldTag.length * 8 + 24, 80);
+  inp.style.cssText = 'width:'+w+'px;font-size:11px;padding:1px 4px;border-radius:6px;border:1px solid #94A3B8;outline:none;background:#FFF;color:#0F172A;font-family:inherit';
+  txtEl.parentNode.replaceChild(inp, txtEl);
+  inp.focus();
+  inp.select();
+  function done() {
+    var v = inp.value.trim();
+    if (v && v !== oldTag) {
+      var idx = (state.manual || []).indexOf(oldTag);
+      if (idx >= 0) { state.manual[idx] = v; }
+      saveFn(state);
+      renderFn();
+    } else {
+      renderFn();
+    }
+  }
+  inp.onblur = done;
+  inp.onkeydown = function(e) {
+    if (e.key === 'Enter') { inp.blur(); }
+    if (e.key === 'Escape') { renderFn(); }
+  };
 }
 
 // ========== 机会标签 ==========
@@ -545,7 +614,18 @@ function renderOppTags() {
   all.forEach(function(t){
     var span = document.createElement('span');
     span.className = 'opp-tag';
-    span.innerHTML = t + '<span class="del" data-tag="'+t+'" onclick="deleteOppTag(this)">×</span>';
+    var txt = document.createElement('span');
+    txt.className = 'tag-text';
+    txt.textContent = t;
+    txt.title = '双击编辑';
+    txt.ondblclick = function(){ editTag(this, _oppState, saveOppState, renderOppTags, '机会'); };
+    span.appendChild(txt);
+    var del = document.createElement('span');
+    del.className = 'del';
+    del.textContent = '×';
+    del.setAttribute('data-tag', t);
+    del.onclick = function(){ deleteOppTag(this); };
+    span.appendChild(del);
     el.appendChild(span);
   });
   var btn = document.createElement('button');
@@ -1153,7 +1233,7 @@ function buildSectorTable() {
   var data = (window._CHART_BUILDSECTORTABLE||[]).slice();
   var el = document.getElementById('sector-table-body');
   if (!el || !data.length) {
-    if (el) el.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:24px;color:#64748B">暂无板块数据</td></tr>';
+    if (el) el.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:24px;color:#64748B">暂无板块数据</td></tr>';
     return;
   }
 
@@ -1167,6 +1247,15 @@ function buildSectorTable() {
       }
       return _sectorSortAsc ? va - vb : vb - va;
     });
+  }
+
+  // 仅显示跟踪题材过滤
+  if (_sectorShowTrackedOnly) {
+    data = data.filter(function(s) { return _trackSectors.hasOwnProperty(s.name); });
+    if (!data.length) {
+      el.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:24px;color:#64748B">暂无跟踪题材</td></tr>';
+      return;
+    }
   }
 
   // Update sort arrow indicators
@@ -1183,7 +1272,12 @@ function buildSectorTable() {
 
   var h = '';
   data.forEach(function(s) {
-    h += '<tr class="sector-row" onclick="switchTabWithTheme(&quot;stock&quot;,&quot;' + s.name.replace(/"/g,'&quot;') + '&quot;)" title="点击查看该题材个股">';
+    var isTracked = _trackSectors.hasOwnProperty(s.name);
+    var alertInfo = isTracked ? computeTrackAlert(s.name) : null;
+    var rowClass = 'sector-row';
+    if (alertInfo) rowClass += ' alert-' + alertInfo.level;
+    else if (isTracked) rowClass += ' tracked';
+    h += '<tr class="' + rowClass + '" onclick="switchTabWithTheme(&quot;stock&quot;,&quot;' + s.name.replace(/"/g,'&quot;') + '&quot;)" title="点击查看该题材个股">';
     var ftags = _stockFilterTags;
     var tagHtml = '';
     for (var fk in ftags) {
@@ -1192,7 +1286,8 @@ function buildSectorTable() {
       }
     }
     h += '<td style="font-weight:600">' + s.name + tagHtml + '</td>';
-    h += '<td>' + s.status + '</td>';
+    var st = s.status.replace('🚀', '📈').replace('🔴今日转跌', '📉今日转跌');
+    h += '<td>' + st + '</td>';
     h += '<td>' + (s.d1 || '') + '</td>';
     h += '<td>' + (s.d2 || '') + '</td>';
     h += '<td>' + (s.d3 || '') + '</td>';
@@ -1200,7 +1295,19 @@ function buildSectorTable() {
     h += '<td>' + (s.d5 || '') + '</td>';
     h += '<td>' + s.ret_5d + '</td>';
     h += '<td>' + s.gt5_pct + '</td>';
-    h += '<td style="font-size:11px;color:#64748B;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + s.stars + '</td>';
+    h += '<td style="font-size:11px;color:#64748B;word-break:break-word">' + s.stars + '</td>';
+    // 是否跟踪列
+    h += '<td class="track-cell" data-track-cell="' + s.name.replace(/"/g,'&quot;') + '" onclick="event.stopPropagation()">';
+    h += '<div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">';
+    h += '<label class="track-toggle"><input type="checkbox" data-theme="' + s.name.replace(/"/g,'&quot;') + '"' + (isTracked ? ' checked' : '') + ' onchange="toggleTrackSector(this, event)"><span class="slider"></span></label>';
+    if (isTracked && alertInfo) {
+      h += '<span class="track-alert-tag" style="background:' + alertInfo.tagColor + '">' + alertInfo.tag + '</span>';
+    }
+    h += '</div>';
+    if (isTracked) {
+      h += '<div class="track-logic" data-theme="' + s.name.replace(/"/g,'&quot;') + '" onclick="editTrackLogic(this, event)" title="点击编辑跟踪逻辑">' + escHtml(_trackSectors[s.name] || '') + '</div>';
+    }
+    h += '</td>';
     h += '</tr>';
   });
   el.innerHTML = h;
@@ -1212,6 +1319,109 @@ var _stockThemeOrder = [];
 var _stockThemeAvg = {};
 var _stockFilterTags = {};
 var _stockDefaultTheme = '全部';
+
+// ========== 题材跟踪 ==========
+var _trackSectors = {};
+var _trackSectorLoaded = false;
+
+function loadTrackSectors() {
+  fetch('/api/track-sectors').then(function(r){return r.json();}).then(function(d){
+    _trackSectors = d || {};
+    _trackSectorLoaded = true;
+    if (_tabRendered['sector']) buildSectorTable();
+  }).catch(function(){ _trackSectorLoaded = true; });
+}
+
+function saveTrackSectors() {
+  fetch('/api/track-sectors',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(_trackSectors)}).catch(function(e){ console.warn('保存跟踪数据失败:', e); });
+}
+
+function computeTrackAlert(themeName) {
+  var gains = [];
+  for (var name in STOCK_MAP) {
+    if (STOCK_MAP[name].s === themeName) {
+      var pct = STOCK_MAP[name].pct;
+      var today = (pct && pct.length) ? pct[pct.length - 1] : null;
+      if (today != null) gains.push(today);
+    }
+  }
+  if (gains.length === 0) return null;
+  var total = gains.length;
+  var gt5 = 0, gt3 = 0;
+  gains.forEach(function(g) {
+    if (g >= 5) gt5++;
+    if (g >= 3) gt3++;
+  });
+  if (gt5 >= 3 || gt5 > total / 2) {
+    return { level: 'gt5', tag: '部分标的涨幅超 5%', tagColor: '#F44336' };
+  }
+  if (gt3 >= 3 || gt3 > total / 2) {
+    return { level: 'gt3', tag: '部分标的涨幅超 3%', tagColor: '#FFD54F' };
+  }
+  return null;
+}
+
+function toggleTrackSector(checkbox, event) {
+  if (event) event.stopPropagation();
+  var themeName = checkbox.getAttribute('data-theme');
+  if (checkbox.checked) {
+    renderTrackEditCell(themeName, '');
+  } else {
+    delete _trackSectors[themeName];
+    saveTrackSectors();
+    buildSectorTable();
+  }
+}
+
+function renderTrackEditCell(themeName, existingLogic) {
+  var el = document.querySelector('td[data-track-cell="' + themeName + '"]');
+  if (!el) return;
+  var h = '<div style="padding:2px">';
+  h += '<textarea class="track-edit-area" placeholder="输入跟踪逻辑（必填）">' + escHtml(existingLogic) + '</textarea>';
+  h += '<div class="track-edit-btns">';
+  h += '<button class="save" data-theme="' + themeName.replace(/"/g,'&quot;') + '" onclick="saveTrackLogic(this, event)">保存</button>';
+  h += '<button class="cancel" onclick="buildSectorTable()">取消</button>';
+  h += '</div></div>';
+  el.innerHTML = h;
+  var ta = el.querySelector('textarea');
+  if (ta) ta.focus();
+}
+
+function saveTrackLogic(btn, event) {
+  if (event) event.stopPropagation();
+  var themeName = btn.getAttribute('data-theme');
+  var cell = btn.closest('td');
+  var ta = cell.querySelector('textarea');
+  var logic = ta ? ta.value.trim() : '';
+  if (!logic) {
+    alert('请输入跟踪逻辑');
+    if (ta) ta.focus();
+    return;
+  }
+  _trackSectors[themeName] = logic;
+  saveTrackSectors();
+  buildSectorTable();
+}
+
+function editTrackLogic(el, event) {
+  if (event) event.stopPropagation();
+  var themeName = el.getAttribute('data-theme');
+  var existing = _trackSectors[themeName] || '';
+  renderTrackEditCell(themeName, existing);
+}
+
+// ========== 仅显示跟踪题材过滤 ==========
+var _sectorShowTrackedOnly = false;
+
+function toggleTrackFilter() {
+  _sectorShowTrackedOnly = !_sectorShowTrackedOnly;
+  var ind = document.getElementById('track-filter-indicator');
+  if (ind) ind.textContent = _sectorShowTrackedOnly ? '☑' : '☐';
+  if (_sectorShowTrackedOnly) ind.style.color = '#2563EB';
+  else ind.style.color = '#94A3B8';
+  buildSectorTable();
+}
+
 // 从API动态加载题材数据
 fetch('/api/data/themes').then(function(r){return r.json();}).then(function(d){
   if (d) {
@@ -1664,6 +1874,7 @@ document.addEventListener('DOMContentLoaded', function() {
   loadRiskState();
   loadOppState();
   loadIndexState();
+  loadTrackSectors();
   loadAllData(function() {
     buildIndexGrid();
     loadIndexLevels();  // 上证水平线（在 grid 创建之后加载）

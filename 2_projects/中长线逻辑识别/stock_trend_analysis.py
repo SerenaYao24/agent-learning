@@ -1485,17 +1485,20 @@ def _fetch_10d_return(code):
         return None
 
 
-def prune_inactive_stocks(input_path, cache, code_map):
+def mark_inactive_stocks(input_path, cache, code_map):
     """
-    清理非活跃标的：近5日涨幅<0 且 近10日涨幅<0 且 近5日无单日涨幅>5% 的标的
-    从 interest_stock.md 和缓存中删除。
-    条件：标的需有 ≥10 天的收盘价数据，且在 interest_stock.md 中存在。
-    返回 (updated_cache, set_of_removed_stock_names)
+    标记非活跃标的：三段状态机
+      无标记 → 【非活跃】→ 【重新活跃】→ 无标记（或回到【非活跃】）
+    非活跃条件：近5日涨幅<0 且 近10日涨幅<0 且 近5日无单日涨幅>5%
+    标的需有 ≥10 天的收盘价数据，且在 interest_stock.md 中存在。
+    返回 (cache, set_of_inactive_stock_names)
     """
+    import re
+
     # 读取 interest_stock.md 中的标的名称
     wl_names = set()
     with open(input_path, 'r', encoding='utf-8') as f:
-        for line in f:
+        for i, line in enumerate(f):
             s = line.strip()
             if s and not s.startswith('#'):
                 name = s.split('（')[0].split('(')[0].strip()
@@ -1504,8 +1507,8 @@ def prune_inactive_stocks(input_path, cache, code_map):
     # 反向映射：code → name
     code_to_name = {code: name for name, code in code_map.items()}
 
-    # 检查每个在 interest_stock.md 中的标的
-    removed = set()
+    # 检查每个标的的活跃状态
+    inactive_now = set()
     for code, data in cache.items():
         name = code_to_name.get(code)
         if not name or name not in wl_names:
@@ -1521,57 +1524,145 @@ def prune_inactive_stocks(input_path, cache, code_map):
             ret_10d = (closes[-1] / closes[-10] - 1) * 100
         except (ZeroDivisionError, IndexError, TypeError):
             continue
-        # 条件1：近5日涨幅<0 且 近10日涨幅<0
         if not (ret_5d < 0 and ret_10d < 0):
             continue
-        # 条件2：近5日内没有任何一日涨幅超过5%（保留偶尔活跃的标的）
         last5_changes = changes[-5:] if len(changes) >= 5 else changes
         if any(c > 5 for c in last5_changes):
             continue
-        removed.add(name)
+        inactive_now.add(name)
 
-    if not removed:
-        return cache, removed
-
-    print(f"\n🧹 清理非活跃标的（近5日<0 且 近10日<0）：{len(removed)} 只")
-    for name in sorted(removed):
-        print(f"  - {name}")
-
-    # 从 interest_stock.md 删除
+    # 扫描文件中当前的标签状态
     with open(input_path, 'r', encoding='utf-8') as f:
         lines = f.readlines()
+
+    tag_state = {}  # name → '非活跃'|'重新活跃'|None
+    for idx, line in enumerate(lines):
+        s = line.strip()
+        if s and not s.startswith('#'):
+            name = s.split('（')[0].split('(')[0].strip()
+            if '【非活跃】' in line:
+                tag_state[name] = '非活跃'
+            elif '【重新活跃】' in line:
+                tag_state[name] = '重新活跃'
+            else:
+                tag_state[name] = None
+
+    # 三段状态机：決定每个标的的操作
+    to_add_inactive = set()    # 无标记 → 【非活跃】
+    to_to_active = set()       # 【非活跃】→ 【重新活跃】
+    to_to_inactive = set()     # 【重新活跃】→ 【非活跃】
+    to_remove_tag = set()      # 【重新活跃】→ 无
+
+    for name in wl_names:
+        current = tag_state.get(name)
+        if current == '非活跃':
+            if not inactive_now.issuperset({name}):
+                to_to_active.add(name)       # 不满足非活跃条件 → 【重新活跃】
+        elif current == '重新活跃':
+            if name in inactive_now:
+                to_to_inactive.add(name)     # 又跌了 → 【非活跃】
+            else:
+                to_remove_tag.add(name)      # 持续活跃 → 清除标签
+        else:  # 无标记
+            if name in inactive_now:
+                to_add_inactive.add(name)    # 新发现不活跃 → 【非活跃】
+
+    changed = to_add_inactive | to_to_active | to_to_inactive | to_remove_tag
+    if not changed:
+        return cache, inactive_now
+
+    # 逐行修改
     new_lines = []
     for line in lines:
         stripped = line.strip()
+        modified = line
         if stripped and not stripped.startswith('#'):
             name = stripped.split('（')[0].split('(')[0].strip()
-            if name in removed:
-                continue
-        new_lines.append(line)
+            if name in to_add_inactive:
+                modified = _set_tag(line, '非活跃')
+            elif name in to_to_active:
+                modified = _replace_tag(line, '非活跃', '重新活跃')
+            elif name in to_to_inactive:
+                modified = _replace_tag(line, '重新活跃', '非活跃')
+            elif name in to_remove_tag:
+                modified = _remove_tag(line)
+        new_lines.append(modified)
+
     with open(input_path, 'w', encoding='utf-8') as f:
         f.writelines(new_lines)
 
-    # 从缓存删除
-    removed_codes = {code for code, name in code_to_name.items() if name in removed}
-    for code in removed_codes:
-        cache.pop(code, None)
-    save_cache(cache)
+    # 输出日志
+    if to_add_inactive:
+        print(f"\n📌 新增非活跃标记：{len(to_add_inactive)} 只")
+        for name in sorted(to_add_inactive):
+            print(f"  🔴 {name}")
+    if to_to_active:
+        print(f"\n🟡 【非活跃】→【重新活跃】：{len(to_to_active)} 只")
+        for name in sorted(to_to_active):
+            print(f"  🟡 {name}")
+    if to_to_inactive:
+        print(f"\n🔴 【重新活跃】→【非活跃】：{len(to_to_inactive)} 只")
+        for name in sorted(to_to_inactive):
+            print(f"  🔴 {name}")
+    if to_remove_tag:
+        print(f"\n🟢 持续活跃（移除【重新活跃】）：{len(to_remove_tag)} 只")
+        for name in sorted(to_remove_tag):
+            print(f"  ✅ {name}")
 
-    # 写入清理日志
+    # 写入打标日志
     log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "log")
     os.makedirs(log_dir, exist_ok=True)
-    log_path = os.path.join(log_dir, f"{datetime.now().strftime('%Y-%m-%d')}_prune.log")
+    log_path = os.path.join(log_dir, f"{datetime.now().strftime('%Y-%m-%d')}_inactive_tag.log")
     with open(log_path, 'w', encoding='utf-8') as f:
-        f.write(f"# 非活跃标的清理日志 {datetime.now().strftime('%Y-%m-%d')}\n")
-        f.write(f"# 清理条件：近5日涨幅<0 且 近10日涨幅<0 且 近5日无单日涨幅>5%，且有≥10天数据\n")
-        f.write(f"# 共清理 {len(removed)} 只\n\n")
-        for name in sorted(removed):
-            f.write(f"- {name}\n")
+        f.write(f"# 非活跃标的打标日志 {datetime.now().strftime('%Y-%m-%d')}\n")
+        f.write(f"# 条件：近5日涨幅<0 且 近10日涨幅<0 且 近5日无单日涨幅>5%，且有≥10天数据\n")
+        f.write(f"# 状态机：无标记→【非活跃】→【重新活跃】→无\n\n")
+        if to_add_inactive:
+            f.write(f"## 新增非活跃 {len(to_add_inactive)} 只\n")
+            for name in sorted(to_add_inactive): f.write(f"- {name}\n")
+        if to_to_active:
+            f.write(f"\n## 【非活跃】→【重新活跃】{len(to_to_active)} 只\n")
+            for name in sorted(to_to_active): f.write(f"- {name}\n")
+        if to_to_inactive:
+            f.write(f"\n## 【重新活跃】→【非活跃】{len(to_to_inactive)} 只\n")
+            for name in sorted(to_to_inactive): f.write(f"- {name}\n")
+        if to_remove_tag:
+            f.write(f"\n## 持续活跃（移除【重新活跃】）{len(to_remove_tag)} 只\n")
+            for name in sorted(to_remove_tag): f.write(f"- {name}\n")
 
-    print(f"💾 interest_stock.md 和 stock_data.json 已更新")
-    print(f"📝 清理日志: {log_path}")
+    print(f"📝 打标日志: {log_path}")
+    return cache, inactive_now
 
-    return cache, removed
+
+def _set_tag(line, tag):
+    """在备注括号中插入指定 tag（如 '非活跃'、'重新活跃'）"""
+    idx = line.find('（')
+    idx2 = line.find('(')
+    paren_idx = min((i for i in [idx, idx2] if i >= 0), default=-1)
+    if paren_idx < 0:
+        stripped = line.rstrip('\n\r')
+        return stripped + f'（【{tag}】）\n'
+    prefix = line[:paren_idx + 1]
+    suffix = line[paren_idx + 1:]
+    if f'【{tag}】' not in suffix:
+        return prefix + f'【{tag}】' + suffix
+    return line
+
+
+def _replace_tag(line, old_tag, new_tag):
+    """替换标签，如 【非活跃】→【重新活跃】"""
+    return line.replace(f'【{old_tag}】', f'【{new_tag}】')
+
+
+def _remove_tag(line):
+    """移除备注中的标签标记，清理多余的间隔符"""
+    import re
+    result = line.replace('【非活跃】', '').replace('【重新活跃】', '')
+    result = re.sub(r'（[；;]*\s*', '（', result)
+    result = re.sub(r'\([；;]*\s*', '(', result)
+    result = re.sub(r'（\s*）', '', result)
+    result = re.sub(r'\(\s*\)', '', result)
+    return result
 
 
 def generate_top_list(input_path, output_path):
@@ -1951,11 +2042,11 @@ def main():
     except Exception:
         pass  # iCloud 目录创建失败不影响本地
 
-    # 清理非活跃标的（在 generate_top_list 之前，确保不出现在报告和看板中）
-    cache, removed_stocks = prune_inactive_stocks(input_path, cache, STOCK_CODE_MAP)
-    if removed_stocks:
+    # 标记非活跃标的（在 generate_top_list 之前，确保不出现在报告和看板中）
+    cache, inactive_stocks = mark_inactive_stocks(input_path, cache, STOCK_CODE_MAP)
+    if inactive_stocks:
         for i, (gname, results) in enumerate(grouped_results):
-            grouped_results[i] = (gname, [r for r in results if r.get('stock_name') not in removed_stocks])
+            grouped_results[i] = (gname, [r for r in results if r.get('stock_name') not in inactive_stocks])
 
     # 数据已全部获取完毕，更新 top_list.md
     generate_top_list(input_path, top_list_path)
