@@ -110,9 +110,14 @@ def execute_query(page, query, page_size=200):
     print(f"  已执行查询: {query}")
     page.wait_for_timeout(8000)
 
-    # 检查结果数
+    # 检查结果数（兼容新旧两种文案）
     total_count = page.evaluate("""() => {
-        const m = document.body.innerText.match(/选出\\s*(\\d+)\\s*只/);
+        const text = document.body.innerText;
+        // 新版："显示股票数量 共 200 只 股票"
+        let m = text.match(/共\\s*(\\d+)\\s*只/);
+        if (m) return parseInt(m[1]);
+        // 旧版："选出 200 只"
+        m = text.match(/选出\\s*(\\d+)\\s*只/);
         return m ? parseInt(m[1]) : 0;
     }""")
     if total_count == 0:

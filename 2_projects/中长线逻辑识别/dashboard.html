@@ -77,6 +77,10 @@ body{background:#F8FAFC;color:#0F172A;font-family:'Fira Sans',-apple-system,sans
 .block-table th:nth-child(5),.block-table td:nth-child(5){width:10%}
 .block-table th:nth-child(6),.block-table td:nth-child(6){width:10%}
 .block-table th:nth-child(7),.block-table td:nth-child(7){width:auto}
+.strong-table th:nth-child(1),.strong-table td:nth-child(1){width:20%}
+.strong-table th:nth-child(2),.strong-table td:nth-child(2){width:80%}
+.strong-table {table-layout:fixed}
+.sector-count-badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;background:#EFF6FF;color:#2563EB;border:1px solid #BFDBFE;margin:2px 3px;white-space:nowrap;line-height:1.6}
 .rank-table th{text-align:left;padding:6px 8px;color:#64748B;font-weight:500;border-bottom:1px solid #E2E8F0;position:sticky;top:0;background:#F8FAFC}
 .rank-table td{padding:5px 8px;border-bottom:1px solid #F1F5F9}
 .rank-table .up{color:#ef4444}
@@ -276,6 +280,8 @@ body{background:#F8FAFC;color:#0F172A;font-family:'Fira Sans',-apple-system,sans
 .hot-header .hot-summary .stat.up{color:#ef4444}
 .hot-header .hot-summary .stat.down{color:#15803D}
 .hot-header .hot-risk-badge{padding:4px 12px;border-radius:12px;font-size:11px;background:#FFF7ED;color:#C2410C;border:1px solid #FED7AA;font-weight:600}
+.hot-sort-toggle{padding:4px 12px;border-radius:12px;font-size:11px;background:#EFF6FF;color:#2563EB;border:1px solid #BFDBFE;cursor:pointer;font-family:inherit;font-weight:500;transition:all .15s;white-space:nowrap}
+.hot-sort-toggle:hover{background:#DBEAFE;border-color:#2563EB}
 .hot-cards-wrap{display:flex;gap:16px;min-height:400px}
 .hot-card{flex:1;border-radius:10px;padding:14px;border:1px solid #E2E8F0}
 .hot-card-up{background:#FEF2F2;border-color:#FECACA}
@@ -454,14 +460,7 @@ body{background:#F8FAFC;color:#0F172A;font-family:'Fira Sans',-apple-system,sans
 
 <!-- ====== Tab 8: 强势标的 ====== -->
 <div class="tab-pane" id="tab-strong">
-  <div class="rank-wrap" style="max-height:none">
-    <table class="rank-table" id="strong-table">
-      <thead><tr>
-        <th>标的名</th><th>股票代码</th><th>首次入选时间</th><th>所属题材</th><th>股票备注</th>
-      </tr></thead>
-      <tbody id="strong-table-body"></tbody>
-    </table>
-  </div>
+  <div id="strong-table"></div>
 </div>
 
 <!-- ====== Tab 9: 热门标的 ====== -->
@@ -2094,29 +2093,88 @@ function buildStrongTab() {
 }
 
 function renderStrongTable(data) {
-  var el = document.getElementById('strong-table-body');
+  var el = document.getElementById('strong-table');
   if (!el) return;
   if (!data || !data.length) {
-    el.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:40px;color:#94A3B8">暂无强势标的</td></tr>';
+    el.innerHTML = '<div class="empty-state"><div class="icon">📊</div><p>暂无强势标的</p></div>';
     return;
   }
-  var h = '';
-  data.forEach(function(r){
-    var note = (r.note || '').replace(/[（(]/,'').replace(/[）)]$/,'');
-    h += '<tr>'
-      + '<td style="font-weight:600;color:#0F172A"><a href="' + stockEastmoneyUrl(r.code || '', r.name || '') + '" target="_blank" style="color:inherit;text-decoration:none" title="在东方财富查看">' + escHtml(r.name || '') + '</a></td>'
-      + '<td style="color:#64748B">' + escHtml(r.code || '') + '</td>'
-      + '<td>' + escHtml(r.first_date || '') + '</td>'
-      + '<td style="color:#2563EB">' + escHtml(r.sector || '') + '</td>'
-      + '<td style="color:#64748B;font-size:11px;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + escHtml(note) + '">' + escHtml(note) + '</td>'
-      + '</tr>';
+
+  // Group by first_date → sector
+  var dateGroups = {};
+  data.forEach(function(r) {
+    var d = r.first_date || '未知';
+    if (!dateGroups[d]) dateGroups[d] = {};
+    var s = r.sector || '其他';
+    if (!dateGroups[d][s]) dateGroups[d][s] = [];
+    dateGroups[d][s].push(r);
   });
+
+  // Sort dates descending
+  var sortedDates = Object.keys(dateGroups).sort().reverse();
+
+  var h = '<table class="rank-table block-table strong-table"><thead><tr><th>首次入围时间</th><th>题材分布</th></tr></thead><tbody>';
+
+  sortedDates.forEach(function(date) {
+    var sectors = dateGroups[date];
+    var sectorKeys = Object.keys(sectors);
+
+    // Build sector summary badges
+    var summaryHtml = '';
+    sectorKeys.forEach(function(sector) {
+      var count = sectors[sector].length;
+      summaryHtml += '<span class="sector-count-badge">' + escHtml(sector) + ' ' + count + '只</span>';
+    });
+
+    // Total stocks for this date
+    var totalStocks = 0;
+    sectorKeys.forEach(function(s) { totalStocks += sectors[s].length; });
+
+    h += '<tr class="theme-row" style="background:#FFF;cursor:pointer" onclick="toggleStrongRow(this)">';
+    h += '<td style="font-weight:600;white-space:nowrap">' + escHtml(date) + ' <span style="font-weight:400;color:#94A3B8;font-size:11px">(' + totalStocks + '只)</span></td>';
+    h += '<td>' + summaryHtml + '</td></tr>';
+
+    // Inner rows per sector per stock
+    sectorKeys.forEach(function(sector) {
+      var stocks = sectors[sector];
+      stocks.forEach(function(r) {
+        var note = (r.note || '').replace(/[（(]/,'').replace(/[）)]$/,'');
+        h += '<tr class="strong-detail-row" style="display:none">';
+        h += '<td style="padding-left:32px">';
+        h += '<a href="' + stockEastmoneyUrl(r.code || '', r.name || '') + '" target="_blank" style="color:#0F172A;text-decoration:none;font-weight:500">' + escHtml(r.name || '') + '</a>';
+        h += ' <span style="color:#64748B;font-size:11px">' + escHtml(r.code || '') + '</span>';
+        h += '</td>';
+        h += '<td><span style="color:#2563EB">' + escHtml(sector) + '</span>';
+        if (note) {
+          h += ' <span style="color:#64748B;font-size:11px">· ' + escHtml(note) + '</span>';
+        }
+        h += '</td></tr>';
+      });
+    });
+  });
+
+  h += '</tbody></table>';
   el.innerHTML = h;
+}
+
+function toggleStrongRow(row) {
+  var n = row.nextElementSibling;
+  while (n && n.classList.contains('strong-detail-row')) {
+    n.style.display = n.style.display === 'none' ? '' : 'none';
+    n = n.nextElementSibling;
+  }
 }
 
 
 // ========== 热门标的 ==========
 var _hotData = null;
+var _hotSortMode = 'chg'; // 'chg' = 按涨跌幅, 'rank' = 按热度排名
+
+function toggleHotSort() {
+  _hotSortMode = _hotSortMode === 'chg' ? 'rank' : 'chg';
+  renderHotTab(_hotData);
+}
+
 function buildHotTab() {
   fetch('/api/hot-rank').then(function(r){return r.json();}).then(function(d){
     _hotData = d || {};
@@ -2134,16 +2192,27 @@ function renderHotTab(data) {
   var downCount = data.down_count || 0;
   var bigDropCount = data.big_drop_count || 0;
 
+  // 按热度排名 or 涨跌幅排序
+  var sortByRank = _hotSortMode === 'rank';
+
   // 分离上涨和下跌
-  var upStocks = stocks.filter(function(s){ return s.chg_pct > 0; })
-    .sort(function(a,b){ return b.chg_pct - a.chg_pct; });
-  var downStocks = stocks.filter(function(s){ return s.chg_pct < 0; })
-    .sort(function(a,b){ return a.chg_pct - b.chg_pct; }); // 跌得越多越靠前
+  var upStocks = stocks.filter(function(s){ return s.chg_pct > 0; });
+  var downStocks = stocks.filter(function(s){ return s.chg_pct < 0; });
   var flatStocks = stocks.filter(function(s){ return s.chg_pct === 0; });
+
+  if (sortByRank) {
+    upStocks.sort(function(a,b){ return a.rank - b.rank; });
+    downStocks.sort(function(a,b){ return a.rank - b.rank; });
+  } else {
+    upStocks.sort(function(a,b){ return b.chg_pct - a.chg_pct; });
+    downStocks.sort(function(a,b){ return a.chg_pct - b.chg_pct; }); // 跌得越多越靠前
+  }
 
   // Header
   var headerEl = document.getElementById('hot-header');
   if (headerEl) {
+    var sortLabel = sortByRank ? '按热度排名' : '按涨跌幅';
+    var altLabel = sortByRank ? '按涨跌幅' : '按热度排名';
     var h = '<span class="hot-date">数据日期: ' + dateStr + (updateTime ? ' ' + updateTime : '') + '</span>';
     h += '<span class="hot-summary">';
     h += '<span class="stat up">上涨 ' + upCount + ' 只</span>';
@@ -2152,6 +2221,7 @@ function renderHotTab(data) {
       h += '<span class="stat down">跌幅超-8%: ' + bigDropCount + ' 只</span>';
     }
     h += '</span>';
+    h += '<button class="hot-sort-toggle" onclick="toggleHotSort()">当前: ' + sortLabel + ' ▾</button>';
     if (bigDropCount > 5) {
       h += '<span class="hot-risk-badge">⚠ 热门股出现亏钱效应</span>';
     }
