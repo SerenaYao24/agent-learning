@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """生成数据看板: 数据文件写入 .index_data/ + 瘦身 HTML（6 Tab，通过 /api/data/* 动态加载）"""
 import csv, json, os, re, glob
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from _topic_utils import parse_topic_header
 
@@ -513,6 +513,22 @@ def build_html():
     idx_state = load_index_state()
     index_state_default = idx_state.get("state", "区间震荡")
 
+    # ---- 前一日涨跌停家数（从 breadth 文件获取） ----
+    prev_zt, prev_dt = None, None
+    if latest_date and latest_date != '—':
+        try:
+            prev_date = (datetime.strptime(latest_date, '%Y-%m-%d') - timedelta(days=1)).strftime('%Y-%m-%d')
+            prev_bf = os.path.join(INDEX_DIR, f"breadth_{prev_date}.csv")
+            if os.path.exists(prev_bf):
+                with open(prev_bf, encoding="utf-8-sig") as fh:
+                    for row in csv.DictReader(fh):
+                        if row["指标"] == "涨停":
+                            prev_zt = row["数值"]
+                        elif row["指标"] == "跌停":
+                            prev_dt = row["数值"]
+        except Exception:
+            pass
+
     # ---- 进攻票/防守票占比 ----
     latest_report = find_latest_multi_report()
     attack_pct, defense_pct = parse_attack_defense_ratio(latest_report) if latest_report else (None, None)
@@ -630,6 +646,8 @@ def build_html():
         "defense_pct": defense_pct,
         "prev_attack": prev_attack,
         "prev_defense": prev_defense,
+        "prev_zt": prev_zt,
+        "prev_dt": prev_dt,
     }, ensure_ascii=False))
     _write_data_file("themes.json", json.dumps({
         "theme_order": theme_order_sorted,
