@@ -1354,10 +1354,12 @@ function computeTrackAlert(themeName) {
     if (g >= 5) gt5++;
     if (g >= 3) gt3++;
   });
-  if (gt5 >= 3 || gt5 > total / 2) {
+  // 触发条件：超5%/超3%的标的数必须超过 max(题材半数, 3)
+  var threshold = Math.max(total / 2, 3);
+  if (gt5 > threshold) {
     return { level: 'gt5', tag: '部分标的涨幅超 5%', tagColor: '#F44336' };
   }
-  if (gt3 >= 3 || gt3 > total / 2) {
+  if (gt3 > threshold) {
     return { level: 'gt3', tag: '部分标的涨幅超 3%', tagColor: '#FFD54F' };
   }
   return null;
