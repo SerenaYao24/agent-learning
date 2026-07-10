@@ -1253,7 +1253,7 @@ function buildSectorTable() {
 
   // 仅显示跟踪题材过滤
   if (_sectorShowTrackedOnly) {
-    data = data.filter(function(s) { return _trackSectors.hasOwnProperty(s.name); });
+    data = data.filter(function(s) { var ti = getTrackSectorInfo(s.name); return ti && ti.active; });
     if (!data.length) {
       el.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:24px;color:#64748B">暂无跟踪题材</td></tr>';
       return;
@@ -1274,7 +1274,8 @@ function buildSectorTable() {
 
   var h = '';
   data.forEach(function(s) {
-    var isTracked = _trackSectors.hasOwnProperty(s.name);
+    var trackInfo = getTrackSectorInfo(s.name);
+    var isTracked = trackInfo ? trackInfo.active : false;
     var alertInfo = isTracked ? computeTrackAlert(s.name) : null;
     var rowClass = 'sector-row';
     if (alertInfo) rowClass += ' alert-' + alertInfo.level;
@@ -1307,7 +1308,9 @@ function buildSectorTable() {
     }
     h += '</div>';
     if (isTracked) {
-      h += '<div class="track-logic" data-theme="' + s.name.replace(/"/g,'&quot;') + '" onclick="editTrackLogic(this, event)" title="点击编辑跟踪逻辑">' + escHtml(_trackSectors[s.name] || '') + '</div>';
+      h += '<div class="track-logic" data-theme="' + s.name.replace(/"/g,'&quot;') + '" onclick="editTrackLogic(this, event)" title="点击编辑跟踪逻辑">' + escHtml(trackInfo ? trackInfo.logic : '') + '</div>';
+    } else if (trackInfo && trackInfo.logic) {
+      h += '<div class="track-logic-inactive" data-theme="' + s.name.replace(/"/g,'&quot;') + '" onclick="reactivateTrackSector(this, event)" title="点击恢复跟踪" style="color:#94A3B8;font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px;cursor:pointer">❌ ' + escHtml(trackInfo.logic) + '</div>';
     }
     h += '</td>';
     h += '</tr>';
@@ -1326,9 +1329,29 @@ var _stockDefaultTheme = '全部';
 var _trackSectors = {};
 var _trackSectorLoaded = false;
 
+// 获取题材跟踪信息（兼容新旧格式）
+function getTrackSectorInfo(themeName) {
+  var info = _trackSectors[themeName];
+  if (!info) return null;
+  if (typeof info === 'string') return {active: true, logic: info};
+  return info;
+}
+
 function loadTrackSectors() {
   fetch('/api/track-sectors').then(function(r){return r.json();}).then(function(d){
-    _trackSectors = d || {};
+    // 迁移旧格式 {name: "logic"} → 新格式 {name: {logic: "...", active: true/false}}
+    var migrated = {};
+    for (var key in d) {
+      if (d.hasOwnProperty(key)) {
+        var val = d[key];
+        if (typeof val === 'string') {
+          migrated[key] = {logic: val, active: true};
+        } else {
+          migrated[key] = val;
+        }
+      }
+    }
+    _trackSectors = migrated;
     _trackSectorLoaded = true;
     if (_tabRendered['sector']) buildSectorTable();
   }).catch(function(){ _trackSectorLoaded = true; });
@@ -1369,11 +1392,30 @@ function toggleTrackSector(checkbox, event) {
   if (event) event.stopPropagation();
   var themeName = checkbox.getAttribute('data-theme');
   if (checkbox.checked) {
-    renderTrackEditCell(themeName, '');
+    // 恢复跟踪：展示已有理由（如果有）
+    var existing = getTrackSectorInfo(themeName);
+    renderTrackEditCell(themeName, existing ? existing.logic : '');
   } else {
-    delete _trackSectors[themeName];
+    // 取消跟踪：保留理由
+    var current = _trackSectors[themeName];
+    _trackSectors[themeName] = {
+      logic: (current && (typeof current === 'string' ? current : current.logic)) || '',
+      active: false
+    };
     saveTrackSectors();
     buildSectorTable();
+  }
+}
+
+function reactivateTrackSector(el, event) {
+  if (event) event.stopPropagation();
+  var themeName = el.getAttribute('data-theme');
+  var info = getTrackSectorInfo(themeName);
+  // 先恢复 active，再弹出编辑框显示已有理由
+  if (info) {
+    info.active = true;
+    saveTrackSectors();
+    renderTrackEditCell(themeName, info.logic);
   }
 }
 
@@ -1402,7 +1444,7 @@ function saveTrackLogic(btn, event) {
     if (ta) ta.focus();
     return;
   }
-  _trackSectors[themeName] = logic;
+  _trackSectors[themeName] = {logic: logic, active: true};
   saveTrackSectors();
   buildSectorTable();
 }
@@ -1410,7 +1452,8 @@ function saveTrackLogic(btn, event) {
 function editTrackLogic(el, event) {
   if (event) event.stopPropagation();
   var themeName = el.getAttribute('data-theme');
-  var existing = _trackSectors[themeName] || '';
+  var info = _trackSectors[themeName];
+  var existing = (info && typeof info === 'object') ? (info.logic || '') : (info || '');
   renderTrackEditCell(themeName, existing);
 }
 
