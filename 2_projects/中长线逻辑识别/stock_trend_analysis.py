@@ -1509,6 +1509,7 @@ def mark_inactive_stocks(input_path, cache, code_map):
 
     # 检查每个标的的活跃状态
     inactive_now = set()
+    judgeable = set()   # 有足够数据可以判断活跃/非活跃的标的
     for code, data in cache.items():
         name = code_to_name.get(code)
         if not name or name not in wl_names:
@@ -1524,6 +1525,7 @@ def mark_inactive_stocks(input_path, cache, code_map):
             ret_10d = (closes[-1] / closes[-10] - 1) * 100
         except (ZeroDivisionError, IndexError, TypeError):
             continue
+        judgeable.add(name)
         if not (ret_5d < 0 and ret_10d < 0):
             continue
         last5_changes = changes[-5:] if len(changes) >= 5 else changes
@@ -1548,15 +1550,18 @@ def mark_inactive_stocks(input_path, cache, code_map):
                 tag_state[name] = None
 
     # 三段状态机：決定每个标的的操作
+    # 数据不足（不在 judgeable 中）的标的保持原状态不变，避免跳步
     to_add_inactive = set()    # 无标记 → 【非活跃】
     to_to_active = set()       # 【非活跃】→ 【重新活跃】
     to_to_inactive = set()     # 【重新活跃】→ 【非活跃】
     to_remove_tag = set()      # 【重新活跃】→ 无
 
     for name in wl_names:
+        if name not in judgeable:
+            continue                           # 数据不足，保持【非活跃】不变
         current = tag_state.get(name)
         if current == '非活跃':
-            if not inactive_now.issuperset({name}):
+            if name not in inactive_now:
                 to_to_active.add(name)       # 不满足非活跃条件 → 【重新活跃】
         elif current == '重新活跃':
             if name in inactive_now:
