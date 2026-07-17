@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""涨停数据匹配自选股：读 log/{date}_limit_up_data.txt，匹配后写入 interest_stock_backup.md"""
+"""涨停数据匹配自选股：读 log/{date}_limit_up_data.txt，匹配后直接写入 interest_stock.md"""
 import re, os, sys
 from collections import OrderedDict
 from datetime import date
@@ -82,8 +82,8 @@ SECTOR_KEYWORDS = OrderedDict([
     ('算力调度/算力工厂', ['算力调度', '算力服务器', 'gpu', 'token工厂', '算力资产', '算力服务', '算力采购', 'ocs交换机', 'ocs交换', '算力', '中昊芯英']),
     ('电力', ['电力', '储能', '电网', '电气', '热电', '特高压', '发电', '充电桩', '煤电', '煤', 'hvdc', '算力电源', '风电', '算电协同', '电缆']),
     ('小金属/贵金属', ['钨', '锡', '有色', '黄金', '铜', '锗', '钽', '铟', '铌', '铪', '锶', '金属', '铁矿', '矿产', '锌', '碲化铋']),
-    ('AI 消费电子', ['ar眼镜', 'ar', 'miniled', 'ai眼镜', '折叠屏', 'ai手机', '面板', 'oled', '光学镜头', 'tac膜']),
-    ('AI 应用', ['ai应用', 'ai服务器', '推理服务器', 'ai智能体', 'ai算力', 'ai数据中心', 'aipc', '端侧ai', 'vr', 'ai语料', 'deepseek', '大模型', '混元', 'ai电商', 'ai音视频', 'ai影视', 'ai导购', 'ai短剧', 'ai金融', 'openclaw', '词元', 'cdn', 'ai出版']),
+    ('AI 消费电子', ['ar眼镜', 'ar', 'miniled', 'ai眼镜', '折叠屏', 'ai手机', '面板', 'oled', '光学镜头', 'tac膜', '微型电声元器件', '电声元器件']),
+    ('AI 应用', ['ai应用', 'ai服务器', '推理服务器', 'ai智能体', 'ai算力', 'ai数据中心', 'aipc', '端侧ai', 'vr', 'ai语料', 'deepseek', '大模型', '混元', 'ai电商', 'ai音视频', 'ai影视', 'ai导购', 'ai短剧', 'ai金融', 'openclaw', '词元', 'cdn', 'ai出版', 'ai电影', '游戏']),
     ('低空经济', ['低空经济', '无人机', '飞行汽车', 'evtol']),
     ('量子科技', ['量子', '量子科技', '量子计算']),
     ('商业航天', ['航天', '商业航天', '卫星', '太空算力', '航空导航', '飞控', '航电', '航空复材', '碳纤维', '海上回收', '火箭']),
@@ -258,7 +258,7 @@ def main():
         else:
             unmatched.append(s)
     
-    # ===== Build interest_stock_backup.md =====
+    # ===== Build interest_stock.md =====
     output = []
     written_names = set()
     
@@ -336,9 +336,9 @@ def main():
         output.append(f"{s['name']}（{s['reason']}）")
     output.append('')
     
-    # Write output
-    backup_path = os.path.join(PROJECT_DIR, "interest_stock_backup.md")
-    with open(backup_path, 'w', encoding='utf-8') as f:
+    # Write output — 直接写入 interest_stock.md
+    main_path = INTEREST_PATH
+    with open(main_path, 'w', encoding='utf-8') as f:
         f.write('\n'.join(output))
     
     # ===== 自动写入 非主流题材.md (matched_feizhuliu 板块的新增标的) =====
@@ -391,7 +391,7 @@ def main():
             print(f"      [{sec}] +{len(stks)}: {', '.join(s['name'] for s in stks)}")
     
     # ===== Verification =====
-    print(f"\n4. 写入: {backup_path}")
+    print(f"\n4. 写入: {main_path}")
     text = '\n'.join(output)
     
     errors = []
