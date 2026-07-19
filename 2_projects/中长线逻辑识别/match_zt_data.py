@@ -83,7 +83,7 @@ SECTOR_KEYWORDS = OrderedDict([
     ('电力', ['电力', '储能', '电网', '电气', '热电', '特高压', '发电', '充电桩', '煤电', '煤', 'hvdc', '算力电源', '风电', '算电协同', '电缆']),
     ('小金属/贵金属', ['钨', '锡', '有色', '黄金', '铜', '锗', '钽', '铟', '铌', '铪', '锶', '金属', '铁矿', '矿产', '锌', '碲化铋']),
     ('AI 消费电子', ['ar眼镜', 'ar', 'miniled', 'ai眼镜', '折叠屏', 'ai手机', '面板', 'oled', '光学镜头', 'tac膜', '微型电声元器件', '电声元器件']),
-    ('AI 应用', ['ai应用', 'ai服务器', '推理服务器', 'ai智能体', 'ai算力', 'ai数据中心', 'aipc', '端侧ai', 'vr', 'ai语料', 'deepseek', '大模型', '混元', 'ai电商', 'ai音视频', 'ai影视', 'ai导购', 'ai短剧', 'ai金融', 'openclaw', '词元', 'cdn', 'ai出版', 'ai电影', '游戏']),
+    ('AI 应用', ['ai应用', 'ai服务器', '推理服务器', 'ai智能体', 'ai算力', 'ai数据中心', 'aipc', '端侧ai', 'vr', 'ai语料', 'deepseek', '大模型', '混元', 'ai电商', 'ai音视频', 'ai影视', 'ai导购', 'ai短剧', 'ai金融', 'openclaw', '词元', 'cdn', 'ai出版', 'ai电影', '游戏', 'kimi', '阶跃星辰', '首发经济']),
     ('低空经济', ['低空经济', '无人机', '飞行汽车', 'evtol']),
     ('量子科技', ['量子', '量子科技', '量子计算']),
     ('商业航天', ['航天', '商业航天', '卫星', '太空算力', '航空导航', '飞控', '航电', '航空复材', '碳纤维', '海上回收', '火箭']),
@@ -106,7 +106,8 @@ SECTOR_KEYWORDS = OrderedDict([
     ('半导体洁净室', ['洁净室']),
     ('金融/证券', ['证券', '金融科技', '期货', '保险', '券商']),
     ('金刚石', ['培育钻石', '金刚石散热', '金刚石', '超硬材料']),
-    ('化工', ['化工', '涤纶', 'pta', '化纤', '轮胎', '油脂化学', '表面活性剂', '钛白粉', '染料', '磷酸铁', '草铵膦', '农药原药', 'poe', 'eaa', '三乙胺', '铬盐', '氦气', '页岩气', 'sofc', '油气', '化肥', '纯碱']),
+    ('化工', ['化工', '涤纶', 'pta', '化纤', '轮胎', '油脂化学', '表面活性剂', '钛白粉', '染料', '磷酸铁', '草铵膦', '农药原药', 'poe', 'eaa', '三乙胺', '铬盐', '氦气', '页岩气', 'sofc', '油气', '化肥', '纯碱', '甲醇', '氯碱']),
+    ('智能驾驶', ['智能驾驶', '无人驾驶', '智能舱驾', '自动驾驶', '百度无人驾驶']),
     ('物理AI', ['物理ai']),
     ('光伏', ['光伏', '太阳能', '钙钛矿', 'tco']),
 ])
@@ -325,16 +326,17 @@ def main():
                     written_names.add(s['name'])
             output.append('')
     
-    # Unmatched section
+    # Unmatched section — 仅当有未匹配标的时才输出
     orig_unmatched = wl_sections.get('未匹配题材', [])
-    output.append(format_topic_header('未匹配题材'))
-    for entry_line, name, desc in orig_unmatched:
-        if entry_line.strip() and name not in written_names:
-            output.append(entry_line.strip())
-            written_names.add(name)
-    for s in unmatched:
-        output.append(f"{s['name']}（{s['reason']}）")
-    output.append('')
+    if orig_unmatched or unmatched:
+        output.append(format_topic_header('未匹配题材'))
+        for entry_line, name, desc in orig_unmatched:
+            if entry_line.strip() and name not in written_names:
+                output.append(entry_line.strip())
+                written_names.add(name)
+        for s in unmatched:
+            output.append(f"{s['name']}（{s['reason']}）")
+        output.append('')
     
     # Write output — 直接写入 interest_stock.md
     main_path = INTEREST_PATH
@@ -375,14 +377,15 @@ def main():
                         fei_written.add(s['name'])
                 fei_output.append('')
         
-        # 保留未匹配题材区
+        # 未匹配题材区 — 仅当有未匹配标的时才输出
         orig_unmatched = fei_sections.get('未匹配题材', [])
-        fei_output.append(format_topic_header('未匹配题材'))
-        for entry_line, name, desc in orig_unmatched:
-            if name not in fei_written:
-                fei_output.append(entry_line)
-                fei_written.add(name)
-        fei_output.append('')
+        if orig_unmatched:
+            fei_output.append(format_topic_header('未匹配题材'))
+            for entry_line, name, desc in orig_unmatched:
+                if name not in fei_written:
+                    fei_output.append(entry_line)
+                    fei_written.add(name)
+            fei_output.append('')
         
         with open(FEIZHULIU_PATH, 'w', encoding='utf-8') as f:
             f.write('\n'.join(fei_output))

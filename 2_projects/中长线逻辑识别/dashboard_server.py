@@ -2,7 +2,7 @@
 """统一服务：静态文件 + API 持久化（风险标签 & 重点监控）"""
 import json, os, re, socket
 from http.server import HTTPServer, SimpleHTTPRequestHandler
-from urllib.parse import urlparse, unquote
+from urllib.parse import urlparse, unquote, parse_qs
 
 DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 INDEX_DIR = os.path.join(DATA_DIR, ".index_data")
@@ -118,9 +118,14 @@ class DashboardHandler(SimpleHTTPRequestHandler):
             self._json_response(index_data)
         elif path == "/api/review":
             all_data = read_json(REVIEW_FILE, [])
-            # 按 created_at 降序，取最近 5 条
+            # 按 created_at 降序
             all_data.sort(key=lambda x: x.get("created_at", ""), reverse=True)
-            self._json_response(all_data[:5])
+            # 支持分页：?offset=0 取 5 条，?offset=5 取后 5 条
+            parsed = urlparse(self.path)
+            params = parse_qs(parsed.query)
+            offset = int(params.get("offset", ["0"])[0])
+            page = all_data[offset:offset + 5]
+            self._json_response({"data": page, "total": len(all_data)})
         elif path == "/api/review-meta":
             data = read_json(REVIEW_META_FILE, {"market_style":"","personal_state":"","operation_expect":""})
             self._json_response(data)

@@ -214,7 +214,11 @@ body{background:#F8FAFC;color:#0F172A;font-family:'Fira Sans',-apple-system,sans
 .review-btn-secondary:focus-visible{outline:2px solid #2563EB;outline-offset:2px}
 
 /* Review items */
-.review-list{display:flex;flex-direction:column;gap:0}
+.review-list{display:flex;flex-direction:column;gap:0;overflow-y:auto;overflow-x:hidden;flex:1;min-height:0}
+.review-loadmore-wrap{text-align:center;padding:12px 0}
+.review-loadmore-btn{background:#F1F5F9;border:1px solid #E2E8F0;border-radius:6px;padding:6px 16px;font-size:12px;color:#475569;cursor:pointer;transition:all .15s;width:100%;max-width:360px;box-sizing:border-box}
+.drawer-body{flex:1;overflow-y:auto;overflow-x:hidden;padding:20px 24px 24px;scrollbar-width:thin;scrollbar-color:#E2E8F0 transparent}
+.review-loadmore-btn:hover{background:#E2E8F0;color:#0F172A}
 .review-item{padding:16px 0;border-bottom:1px solid #F1F5F9;transition:background .15s;border-radius:6px;margin:0 -4px;padding:14px 4px}
 .review-item:last-child{border-bottom:none}
 .review-item:hover{background:#FAFBFC}
@@ -2037,16 +2041,38 @@ function cancelEdit() {
   document.getElementById('review-cancel-btn').style.display = 'none';
 }
 
+var _reviewOffset = 0;
+var _reviewTotal = 0;
+var _reviewLoading = false;
+
 function loadReviewData() {
-  fetch('/api/review').then(function(r){ return r.json(); }).then(function(d){
-    _reviewData = d;
-    var el = document.getElementById('review-list');
-    if (!d.length) {
-      el.innerHTML = '<div class="no-review">暂无复盘记录</div>';
-      return;
+  _reviewOffset = 0;
+  _reviewTotal = 0;
+  _reviewLoading = false;
+  document.getElementById('review-list').innerHTML = '';
+  _fetchReviewPage(0, true);
+}
+
+function _fetchReviewPage(offset, replace) {
+  if (_reviewLoading) return;
+  _reviewLoading = true;
+  var el = document.getElementById('review-list');
+  fetch('/api/review?offset='+offset).then(function(r){ return r.json(); }).then(function(d){
+    _reviewTotal = d.total;
+    _reviewOffset = offset + d.data.length;
+    if (replace) {
+      _reviewData = d.data;
+      if (!d.data.length) {
+        el.innerHTML = '<div class="no-review">暂无复盘记录</div>';
+        _reviewLoading = false;
+        return;
+      }
+    } else {
+      _reviewData = _reviewData.concat(d.data);
     }
+    // 重新构建列表：已有数据条目（不含按钮）+ 新数据条目 + 底部按钮
     var h = '';
-    d.forEach(function(r){
+    _reviewData.forEach(function(r){
       var opClass = r['operation'] === '进攻' ? 'attack' : 'defense';
       var opLabel = r['operation'] || '—';
       h += '<div class="review-item">'+
@@ -2062,8 +2088,21 @@ function loadReviewData() {
         (r['detail'] ? '<div class="review-item-detail">'+r['detail']+'</div>' : '')+
       '</div>';
     });
+    // 如果还有更多，在末尾放一个"加载更多"按钮
+    if (_reviewOffset < _reviewTotal) {
+      h += '<div class="review-loadmore-wrap"><button class="review-loadmore-btn" onclick="_loadMore()">加载更早的 5 条</button></div>';
+    } else if (_reviewTotal > 0) {
+      h += '<div class="review-loadmore-wrap" style="padding:8px 0;font-size:12px;color:#94A3B8;text-align:center">已显示全部 ' + _reviewTotal + ' 条笔记</div>';
+    }
     el.innerHTML = h;
-  }).catch(function(){});
+    el.classList.remove('loading-more');
+    _reviewLoading = false;
+  }).catch(function(){ _reviewLoading = false; });
+}
+
+function _loadMore() {
+  if (_reviewLoading || _reviewOffset >= _reviewTotal) return;
+  _fetchReviewPage(_reviewOffset, false);
 }
 
 function editReview(createdAt) {
