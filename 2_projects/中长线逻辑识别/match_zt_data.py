@@ -56,7 +56,7 @@ BROAD_GROUP_SECTORS = {
     ],
 }
 # 不再跟踪的题材（新标的不会加入自选）
-EXCLUDED_SECTORS = {'地产', '消费', '光伏'}
+EXCLUDED_SECTORS = {'地产', '光伏'}
 
 SECTOR_KEYWORDS = OrderedDict([
     ('CPO', ['cpo', '光引擎']),

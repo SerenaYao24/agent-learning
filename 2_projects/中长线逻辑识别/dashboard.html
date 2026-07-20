@@ -1243,6 +1243,23 @@ function buildSectorTable() {
     return;
   }
 
+  // 计算创业板ETF & 沪深300ETF 最后一天的涨跌幅最小值（用于 d5 比较）
+  var etfData = (window._CHART_BUILDETFGRID||[]);
+  var etfMinPct = null;
+  etfData.forEach(function(item) {
+    if (item.name === '创业板ETF' || item.name === '沪深300ETF') {
+      var kline = item.kline || [];
+      if (kline.length >= 2) {
+        var prev = kline[kline.length - 2];
+        var last = kline[kline.length - 1];
+        if (prev && last && prev.close && last.close) {
+          var pct = (last.close - prev.close) / prev.close * 100;
+          if (etfMinPct === null || pct < etfMinPct) etfMinPct = pct;
+        }
+      }
+    }
+  });
+
   // Sort
   if (_sectorSortCol) {
     data.sort(function(a, b) {
@@ -1299,7 +1316,14 @@ function buildSectorTable() {
     h += '<td>' + (s.d2 || '') + '</td>';
     h += '<td>' + (s.d3 || '') + '</td>';
     h += '<td>' + (s.d4 || '') + '</td>';
-    h += '<td>' + (s.d5 || '') + '</td>';
+    // d5 < 两ETF最小涨跌幅 → 绿色字体
+    var d5Val = s.d5 || '';
+    var d5Num = parseNumeric(d5Val);
+    var d5Style = '';
+    if (d5Num !== null && etfMinPct !== null && d5Num < etfMinPct) {
+      d5Style = ' style="color:#15803D"';
+    }
+    h += '<td' + d5Style + '>' + d5Val + '</td>';
     h += '<td>' + s.ret_5d + '</td>';
     h += '<td>' + s.gt5_pct + '</td>';
     h += '<td style="font-size:11px;color:#64748B;word-break:break-word">' + s.stars + '</td>';
