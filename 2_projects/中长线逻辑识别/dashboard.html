@@ -224,11 +224,6 @@ body{background:#F8FAFC;color:#0F172A;font-family:'Fira Sans',-apple-system,sans
 .review-item:hover{background:#FAFBFC}
 .review-item-top{display:flex;align-items:center;margin-bottom:8px;gap:10px}
 .review-item-date{font-size:12px;color:#94A3B8;font-weight:500;margin-left:auto}
-.review-item-op{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:.3px}
-.review-item-op.attack{background:#F0FDF4;color:#15803D;border:1px solid #BBF7D0}
-.review-item-op.attack::before{content:'';width:6px;height:6px;border-radius:50%;background:#15803D;flex-shrink:0}
-.review-item-op.defense{background:#FFF7ED;color:#C2410C;border:1px solid #FED7AA}
-.review-item-op.defense::before{content:'';width:6px;height:6px;border-radius:50%;background:#C2410C;flex-shrink:0}
 .review-item-expect{font-size:13px;color:#0F172A;margin-bottom:6px;line-height:1.55;font-weight:500}
 .review-item-detail{font-size:12px;color:#64748B;line-height:1.65;white-space:pre-wrap}
 .review-edit-btn,.review-del-btn{background:none;border:1px solid transparent;width:28px;height:28px;border-radius:6px;color:#CBD5E1;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0}
@@ -2058,7 +2053,7 @@ function toggleReviewDrawer() {
 
 function cancelEdit() {
   _editingReviewId = null;
-  document.getElementById('review-expect').value = '';
+  document.getElementById('review-expect').value = '操作计划：\n预期胜率：';
   var detailEl = document.getElementById('review-detail');
   if (detailEl) detailEl.innerHTML = '';
   document.getElementById('review-submit-text').textContent = '提交';
@@ -2097,11 +2092,8 @@ function _fetchReviewPage(offset, replace) {
     // 重新构建列表：已有数据条目（不含按钮）+ 新数据条目 + 底部按钮
     var h = '';
     _reviewData.forEach(function(r){
-      var opClass = r['operation'] === '进攻' ? 'attack' : 'defense';
-      var opLabel = r['operation'] || '—';
       h += '<div class="review-item">'+
         '<div class="review-item-top">'+
-          '<span class="review-item-op '+opClass+'">'+opLabel+'</span>'+
           '<span class="review-item-date">'+r['date']+'</span>'+
           '<div style="display:flex;gap:2px">'+
           '<button class="review-del-btn" onclick="deleteReview(\x27'+escJs(r['created_at'])+'\x27)" title="删除"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>'+
@@ -2134,8 +2126,7 @@ function editReview(createdAt) {
   if (!rec) return;
   _editingReviewId = createdAt;
   document.getElementById('review-date').value = rec['date'];
-  document.getElementById('review-op').value = rec['operation'];
-  document.getElementById('review-expect').value = rec['expectation'] || '';
+  document.getElementById('review-expect').value = rec['expectation'] || '操作计划：\n预期胜率：';
   document.getElementById('review-detail').innerHTML = rec['detail'] || '';
   document.getElementById('review-submit-text').textContent = '保存';
   document.getElementById('review-cancel-btn').style.display = 'inline-block';
@@ -2162,7 +2153,6 @@ function execEdit(cmd, val) {
 
 function submitReview() {
   var date = document.getElementById('review-date').value;
-  var operation = document.getElementById('review-op').value;
   var expectation = document.getElementById('review-expect').value.trim();
   var detailEl = document.getElementById('review-detail');
   var detail = detailEl ? detailEl.innerHTML.trim() : '';
@@ -2170,7 +2160,7 @@ function submitReview() {
   if (!expectation && !detail) { alert('请填写操作预期或详细笔记'); return; }
   var entry = {
     date: date,
-    operation: operation,
+    operation: '',
     expectation: expectation,
     detail: detail,
     created_at: _editingReviewId || new Date().toISOString()
@@ -2427,15 +2417,11 @@ function renderHotTab(data) {
       <div class="review-form-row">
         <label>日期</label>
         <input type="date" id="review-date">
-        <label style="margin-left:8px">操作</label>
-        <select id="review-op">
-          <option value="进攻">进攻 · 预期上涨</option>
-          <option value="防守">防守 · 控制回撤</option>
-        </select>
       </div>
       <div class="review-form-row label-top">
         <label>操作预期</label>
-        <textarea id="review-expect" rows="5" placeholder="操作逻辑、预期目标、持有/减仓计划..."></textarea>
+        <textarea id="review-expect" rows="5" placeholder="操作计划：
+预期胜率："></textarea>
       </div>
       <div class="review-form-row label-top">
         <label>详细笔记</label>
