@@ -182,9 +182,12 @@ body{background:#F8FAFC;color:#0F172A;font-family:'Fira Sans',-apple-system,sans
 .drawer-overlay.open{display:block}
 .drawer{position:fixed;top:0;right:-33.34vw;width:33.34vw;height:100vh;background:#FFF;z-index:210;box-shadow:-8px 0 32px rgba(15,23,42,.12);transition:right .35s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column;overflow:hidden}
 .drawer.open{right:0}
-.drawer-header{display:flex;justify-content:space-between;align-items:center;padding:18px 24px 14px;border-bottom:1px solid #E2E8F0;flex-shrink:0}
+.drawer-header{display:flex;justify-content:space-between;align-items:center;padding:9px 24px 7px;border-bottom:1px solid #E2E8F0;flex-shrink:0;gap:12px}
 .drawer-header h3{font-size:15px;font-weight:600;color:#0F172A;display:flex;align-items:center;gap:8px}
 .drawer-header h3 svg{width:18px;height:18px;color:#475569}
+.drawer-header-right{display:flex;align-items:center;gap:10px}
+.drawer-header input[type=date]{padding:4px 8px;border-radius:6px;font-size:12px;border:1px solid #D1D5DB;font-family:inherit;color-scheme:light;background:#FFF;color:#0F172A;min-height:28px}
+.drawer-header input[type=date]:focus{outline:none;border-color:#2563EB;box-shadow:0 0 0 3px rgba(37,99,235,.12)}
 .drawer-close{background:none;border:none;width:32px;height:32px;border-radius:6px;color:#94A3B8;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s}
 .drawer-close:hover{background:#F1F5F9;color:#475569}
 .drawer-close:focus-visible{outline:2px solid #2563EB;outline-offset:2px}
@@ -232,6 +235,11 @@ body{background:#F8FAFC;color:#0F172A;font-family:'Fira Sans',-apple-system,sans
 .review-del-btn:hover{background:#FFF7ED;border-color:#FED7AA;color:#ef4444}
 .review-edit-btn svg,.review-del-btn svg{width:14px;height:14px}
 .review-edit-btn:focus-visible,.review-del-btn:focus-visible{outline:2px solid #2563EB;outline-offset:2px}
+.review-copy-btn{background:none;border:1px solid transparent;width:28px;height:28px;border-radius:6px;color:#CBD5E1;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0}
+.review-copy-btn:hover{background:#ECFDF5;border-color:#A7F3D0;color:#059669}
+.review-copy-btn svg{width:14px;height:14px}
+.review-copy-btn.copied{background:#ECFDF5;border-color:#A7F3D0;color:#059669}
+.review-copy-btn:focus-visible{outline:2px solid #2563EB;outline-offset:2px}
 
 /* Rich text editor for detail */
 .review-editor{border:1px solid #D1D5DB;border-radius:8px;overflow:hidden}
@@ -258,9 +266,6 @@ body{background:#F8FAFC;color:#0F172A;font-family:'Fira Sans',-apple-system,sans
 .review-meta-text:empty::before{content:attr(data-placeholder);color:#93C5FD}
 .review-meta-text[contenteditable=true]:focus{outline:2px solid #2563EB;outline-offset:1px;background:#FFF}
 .review-meta-text[contenteditable=true]{cursor:text}
-.review-meta-save{font-size:10px;color:#1D4ED8;cursor:pointer;padding:2px 6px;border-radius:4px;background:transparent;border:1px solid transparent;font-family:inherit;white-space:nowrap;flex-shrink:0;display:none}
-.review-meta-save:hover{background:#DBEAFE;border-color:#BFDBFE}
-.review-meta:hover .review-meta-save{display:inline}
 
 /* Empty / misc */
 .no-review{text-align:center;padding:40px 0;color:#94A3B8;font-size:13px;line-height:1.6}
@@ -268,11 +273,52 @@ body{background:#F8FAFC;color:#0F172A;font-family:'Fira Sans',-apple-system,sans
 .review-btn:hover{background:#F1F5F9;color:#0F172A;border-color:#94A3B8}
 .review-btn svg{width:15px;height:15px}
 
+/* ===== Filler Grid ===== */
+.filler-grid-wrap{display:flex;flex-direction:column;align-items:center;margin-left:auto;flex-shrink:0}
+.filler-grid{display:grid;gap:1px;cursor:pointer}
+.filler-region{position:relative;border-radius:5px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:10px;font-weight:600;color:#334155;transition:box-shadow .15s;min-width:0;min-height:0;overflow:hidden;border:2px solid rgba(255,255,255,.7);background:#CBD5E1}
+.filler-region:hover{box-shadow:0 0 0 0.5px #2563EB}
+.filler-region .f-empty{font-size:9px;opacity:.6;pointer-events:none}
+.filler-region .f-label{font-size:9px;line-height:1.15;text-align:center;word-break:break-all;max-width:100%;padding:0 1px;pointer-events:none}
+.filler-region .f-bias{font-size:8px;line-height:1.1;text-align:center;pointer-events:none;opacity:.75;margin-top:1px}
+.filler-layout-btn{display:inline-block;margin-top:5px;padding:4px 12px;border-radius:6px;border:1px solid #E2E8F0;background:#FFF;font-size:10px;color:#64748B;cursor:pointer;text-align:center;transition:all .15s;user-select:none}
+.filler-layout-btn:hover{color:#2563EB;border-color:#BFDBFE;background:#EFF6FF}
+
+/* ===== Filler Modal ===== */
+.filler-modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,.15);z-index:300;display:flex;align-items:flex-start;justify-content:flex-end;backdrop-filter:blur(1px)}
+.filler-modal{background:#FFF;border-radius:14px;padding:24px 28px;width:340px;box-shadow:0 20px 60px rgba(15,23,42,.2);max-height:90vh;overflow-y:auto;margin:12px 12px auto auto}
+.filler-modal h3{font-size:15px;font-weight:600;color:#0F172A;margin:0 0 18px}
+.filler-field{margin-bottom:14px}
+.filler-field label{display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:4px;letter-spacing:.3px}
+.filler-field input[type=text]{width:100%;padding:8px 10px;border-radius:7px;border:1px solid #D1D5DB;font-size:13px;font-family:inherit;box-sizing:border-box;transition:border-color .15s,box-shadow .15s}
+.filler-field input[type=text]:focus{outline:none;border-color:#2563EB;box-shadow:0 0 0 3px rgba(37,99,235,.12)}
+.filler-slider-row{display:flex;align-items:center;gap:10px}
+.filler-slider-row input[type=range]{flex:1;height:4px;-webkit-appearance:none;appearance:none;border-radius:2px;background:linear-gradient(to right,#22C55E,#FFF,#EF4444);outline:none}
+.filler-slider-row input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:16px;height:16px;border-radius:50%;background:#FFF;border:2.5px solid #2563EB;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.15)}
+.filler-slider-row input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:#FFF;border:2.5px solid #2563EB;cursor:pointer}
+.filler-slider-val{font-size:13px;font-weight:600;color:#0F172A;min-width:30px;text-align:center}
+.filler-stepper{display:flex;align-items:center;gap:4px;flex-shrink:0}
+.filler-step-btn{width:18px;height:18px;border-radius:4px;border:1px solid #D1D5DB;background:#FFF;color:#475569;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;line-height:1;transition:all .12s;font-family:inherit}
+.filler-step-btn:hover{background:#F1F5F9;border-color:#2563EB;color:#2563EB}
+.filler-step-btn:active{transform:scale(.92)}
+.filler-modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:20px;padding-top:14px;border-top:1px solid #E2E8F0}
+.filler-modal-btn{padding:7px 22px;border-radius:8px;font-size:13px;font-weight:500;border:none;cursor:pointer;font-family:inherit;transition:all .15s}
+.filler-modal-btn.primary{background:#2563EB;color:#FFF}
+.filler-modal-btn.primary:hover{background:#1D4ED8}
+.filler-modal-btn.secondary{background:#FFF;color:#475569;border:1px solid #D1D5DB}
+.filler-modal-btn.secondary:hover{background:#F1F5F9}
+
 /* Server offline banner */
 .server-banner{display:none;background:#FEF2F2;border-bottom:1px solid #FECACA;padding:10px 24px;font-size:13px;color:#991B1B;align-items:center;gap:8px}
 .server-banner.show{display:flex}
 .server-banner svg{width:16px;height:16px;flex-shrink:0}
 .server-banner code{background:#FFF;padding:2px 6px;border-radius:4px;font-size:12px;border:1px solid #FECACA;font-family:monospace}
+.server-banner .banner-btn{margin-left:4px;padding:5px 14px;border-radius:6px;border:1px solid #DC2626;background:#DC2626;color:#FFF;font-size:13px;font-family:inherit;cursor:pointer;font-weight:600;transition:all .15s;white-space:nowrap}
+.server-banner .banner-btn:hover{background:#B91C1C;border-color:#B91C1C}
+.server-banner .banner-btn:disabled{opacity:.6;cursor:default}
+.server-banner .banner-msg{margin-left:6px;font-size:12px}
+.server-banner .banner-msg.ok{color:#15803D}
+.server-banner .banner-msg.err{color:#991B1B}
 
 /* Hot rank tab */
 .hot-header{display:flex;gap:16px;align-items:center;padding:8px 0 12px;flex-wrap:wrap}
@@ -307,7 +353,9 @@ body{background:#F8FAFC;color:#0F172A;font-family:'Fira Sans',-apple-system,sans
 
 <div class="server-banner" id="server-banner">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-  <span>看板服务未启动。请先运行 <code>python3 dashboard_server.py</code>，然后访问 <code>http://localhost:8977/dashboard.html</code></span>
+  <span>看板服务未启动。</span>
+  <button class="banner-btn" id="start-btn" onclick="startDashboard()">启动后台服务</button>
+  <span class="banner-msg" id="start-msg"></span>
 </div>
 
 <div class="header">
@@ -1877,11 +1925,71 @@ function saveIndexState() {
 }
 
 // ===== 服务检测 =====
-function checkServer() {
-  fetch('/api/data/indicators', {method:'HEAD'}).then(function(){
-    document.getElementById('server-banner').classList.remove('show');
+// 探测本机正在运行的 dashboard 端口：先问启动器，再回退扫描候选端口
+function detectDashboardPort() {
+  return fetch(LAUNCHER_BASE + '/status').then(function(r){ return r.json(); }).then(function(d){
+    if (d && d.running && d.port) return d.port;
+    throw new Error('no');
   }).catch(function(){
-    document.getElementById('server-banner').classList.add('show');
+    var ports = [];
+    for (var p = 8977; p <= 8996; p++) ports.push(p);
+    return probePorts(ports, 0);
+  });
+}
+function probePorts(ports, i) {
+  if (i >= ports.length) return null;
+  var url = 'http://127.0.0.1:' + ports[i] + '/api/health';
+  return fetch(url).then(function(){ return ports[i]; }).catch(function(){ return probePorts(ports, i + 1); });
+}
+
+function checkServer() {
+  var banner = document.getElementById('server-banner');
+  if (location.protocol !== 'file:') {
+    // 由服务托管：相对路径即可命中
+    fetch('/api/health').then(function(){
+      banner.classList.remove('show');
+    }).catch(function(){
+      banner.classList.add('show');
+    });
+    return;
+  }
+  // file:// 直接打开：探测本机服务；若已运行则跳转到正确的 http 地址，否则提示启动
+  detectDashboardPort().then(function(port){
+    if (port) {
+      window.location.href = 'http://127.0.0.1:' + port + '/dashboard.html';
+    } else {
+      banner.classList.add('show');
+    }
+  }).catch(function(){
+    banner.classList.add('show');
+  });
+}
+
+// ===== 通过启动器一键拉起后台服务 =====
+var LAUNCHER_BASE = 'http://127.0.0.1:8990';
+function startDashboard() {
+  var btn = document.getElementById('start-btn');
+  var msg = document.getElementById('start-msg');
+  if (!btn) return;
+  btn.disabled = true;
+  btn.textContent = '正在启动…';
+  msg.className = 'banner-msg';
+  msg.textContent = '';
+  fetch(LAUNCHER_BASE + '/start', {method:'POST'}).then(function(r){ return r.json(); }).then(function(d){
+    if (d && d.ok && d.port) {
+      msg.className = 'banner-msg ok';
+      msg.textContent = '已启动，正在跳转…';
+      setTimeout(function(){
+        window.location.href = 'http://127.0.0.1:' + d.port + '/dashboard.html';
+      }, 600);
+    } else {
+      throw new Error((d && d.error) || '启动失败');
+    }
+  }).catch(function(e){
+    btn.disabled = false;
+    btn.textContent = '启动后台服务';
+    msg.className = 'banner-msg err';
+    msg.textContent = '无法连接启动器，请先运行 python3 dashboard_launcher.py';
   });
 }
 
@@ -2017,14 +2125,6 @@ document.addEventListener('keydown', function(e) {
   }
 });
 
-function saveMetaField(key, elId) {
-  var el = document.getElementById(elId);
-  if (!el) return;
-  _reviewMeta[key] = el.textContent.trim();
-  el.setAttribute('contenteditable', 'false');
-  autoSaveMeta();
-}
-
 function autoSaveMeta() {
   fetch('/api/review-meta', {
     method:'POST',
@@ -2047,6 +2147,7 @@ function toggleReviewDrawer() {
     document.getElementById('review-date').value = new Date().toISOString().slice(0,10);
     cancelEdit();
     loadReviewMeta();
+    loadFillerData();
     loadReviewData();
   }
 }
@@ -2096,6 +2197,7 @@ function _fetchReviewPage(offset, replace) {
         '<div class="review-item-top">'+
           '<span class="review-item-date">'+r['date']+'</span>'+
           '<div style="display:flex;gap:2px">'+
+          '<button class="review-copy-btn" onclick="copyReview(\x27'+escJs(r['created_at'])+'\x27)" title="复制为新笔记"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>'+
           '<button class="review-del-btn" onclick="deleteReview(\x27'+escJs(r['created_at'])+'\x27)" title="删除"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>'+
           '<button class="review-edit-btn" onclick="editReview(\x27'+escJs(r['created_at'])+'\x27)" title="修改"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>'+
           '</div>'+
@@ -2146,8 +2248,72 @@ function deleteReview(createdAt) {
   }).catch(function(){});
 }
 
+function copyReview(createdAt) {
+  var rec = _reviewData.find(function(r){ return r['created_at'] === createdAt; });
+  if (!rec) return;
+  // 关键：保持 _editingReviewId 为 null → 提交时新建一份，不覆盖原笔记
+  _editingReviewId = null;
+  document.getElementById('review-date').value = rec['date'] || new Date().toISOString().slice(0,10);
+  document.getElementById('review-expect').value = rec['expectation'] || '';
+  document.getElementById('review-detail').innerHTML = rec['detail'] || '';
+  document.getElementById('review-submit-text').textContent = '提交';
+  document.getElementById('review-cancel-btn').style.display = 'inline-block';
+  // 滚到表单顶部并聚焦，便于立即修改/提交
+  var drawer = document.getElementById('review-drawer');
+  if (drawer) drawer.scrollTop = 0;
+  var expectEl = document.getElementById('review-expect');
+  if (expectEl) expectEl.focus();
+}
+
 function execEdit(cmd, val) {
   document.execCommand(cmd, false, val || null);
+  document.getElementById('review-detail').focus();
+}
+
+function _hexToRgb(c) {
+  var d = document.createElement('div');
+  d.style.color = c;
+  document.body.appendChild(d);
+  var rgb = getComputedStyle(d).color;
+  document.body.removeChild(d);
+  return rgb;
+}
+
+function _selectionBgColor() {
+  // 返回选区所在元素最内层的实际底色（归一化为 rgb(r, g, b)），无则空串
+  var sel = window.getSelection();
+  if (!sel || sel.rangeCount === 0) return '';
+  var node = sel.anchorNode;
+  if (!node) return '';
+  var el = (node.nodeType === 3) ? node.parentElement : (node.nodeType === 1 ? node : null);
+  while (el) {
+    var bg = '';
+    try { bg = getComputedStyle(el).backgroundColor; } catch (e) {}
+    if (bg && bg !== 'transparent' && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'rgb(255, 255, 255)') {
+      return bg;
+    }
+    if (el === document.getElementById('review-detail')) break;
+    el = el.parentElement;
+  }
+  return '';
+}
+
+function toggleHighlight(color) {
+  // 若选区已是该颜色则取消（设为透明），否则应用该颜色（可替换其它底色）
+  var cur = _selectionBgColor();
+  var target = _hexToRgb(color);
+  if (cur && cur === target) {
+    document.execCommand('hiliteColor', false, 'transparent');
+    try { document.execCommand('backColor', false, 'transparent'); } catch (e) {}
+  } else {
+    document.execCommand('hiliteColor', false, color);
+  }
+  document.getElementById('review-detail').focus();
+}
+
+function clearHighlight() {
+  document.execCommand('hiliteColor', false, 'transparent');
+  try { document.execCommand('backColor', false, 'transparent'); } catch (e) {}
   document.getElementById('review-detail').focus();
 }
 
@@ -2390,34 +2556,36 @@ function renderHotTab(data) {
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
       复盘笔记
     </h3>
-    <button class="drawer-close" onclick="toggleReviewDrawer()" aria-label="关闭">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-    </button>
+    <div class="drawer-header-right">
+      <input type="date" id="review-date">
+      <button class="drawer-close" onclick="toggleReviewDrawer()" aria-label="关闭">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
   </div>
   <div class="drawer-body">
-    <!-- 当前状态卡 -->
-    <div class="review-meta" id="review-meta">
-      <div class="review-meta-item">
-        <span class="review-meta-label">市场风格</span>
-        <span class="review-meta-text" id="meta-market" contenteditable="false" data-placeholder="震荡/主升/防御..."></span>
-        <button class="review-meta-save" onclick="saveMetaField('market_style','meta-market')">保存</button>
+    <!-- 当前状态卡 + 填色器 -->
+    <div class="review-meta" id="review-meta" style="display:flex;gap:16px;align-items:stretch;">
+      <div style="flex:1;min-width:0">
+        <div class="review-meta-item">
+          <span class="review-meta-label">市场风格</span>
+          <span class="review-meta-text" id="meta-market" contenteditable="false" data-placeholder="震荡/主升/防御..."></span>
+        </div>
+        <div class="review-meta-item">
+          <span class="review-meta-label">个人状态</span>
+          <span class="review-meta-text" id="meta-state" contenteditable="false" data-placeholder="冷静/谨慎/激进..."></span>
+        </div>
+        <div class="review-meta-item">
+          <span class="review-meta-label">操作预期</span>
+          <span class="review-meta-text" id="meta-expect" contenteditable="false" data-placeholder="进攻/防守/观望..."></span>
+        </div>
       </div>
-      <div class="review-meta-item">
-        <span class="review-meta-label">个人状态</span>
-        <span class="review-meta-text" id="meta-state" contenteditable="false" data-placeholder="冷静/谨慎/激进..."></span>
-        <button class="review-meta-save" onclick="saveMetaField('personal_state','meta-state')">保存</button>
-      </div>
-      <div class="review-meta-item">
-        <span class="review-meta-label">操作预期</span>
-        <span class="review-meta-text" id="meta-expect" contenteditable="false" data-placeholder="进攻/防守/观望..."></span>
-        <button class="review-meta-save" onclick="saveMetaField('operation_expect','meta-expect')">保存</button>
+      <div class="filler-grid-wrap">
+        <div class="filler-grid" id="filler-grid"></div>
+        <div class="filler-layout-btn" onclick="openLayoutEditor()">编辑布局</div>
       </div>
     </div>
     <div class="review-form">
-      <div class="review-form-row">
-        <label>日期</label>
-        <input type="date" id="review-date">
-      </div>
       <div class="review-form-row label-top">
         <label>操作预期</label>
         <textarea id="review-expect" rows="5" placeholder="操作计划：
@@ -2428,7 +2596,9 @@ function renderHotTab(data) {
         <div class="review-editor">
           <div class="review-editor-toolbar">
             <button onclick="execEdit('bold')" title="加粗"><b>B</b></button>
-            <button onclick="execEdit('hiliteColor','#FEF08A')" title="文字底色"><span style="background:#FEF08A;padding:0 4px;border-radius:2px">A</span></button>
+            <button onclick="toggleHighlight('#FEF08A')" title="黄色底色（再点一次可取消）"><span style="background:#FEF08A;padding:0 4px;border-radius:2px">A</span></button>
+            <button onclick="toggleHighlight('#D1D5DB')" title="浅灰底色（再点一次可取消）"><span style="background:#D1D5DB;padding:0 4px;border-radius:2px;color:#475569">A</span></button>
+            <button onclick="clearHighlight()" title="清除底色"><span style="padding:0 4px;border-radius:2px;text-decoration:line-through">A</span></button>
           </div>
           <div class="review-editor-content" id="review-detail" contenteditable="true" data-placeholder="市场表现、逻辑验证结果、后续观察要点..."></div>
         </div>
@@ -2442,6 +2612,289 @@ function renderHotTab(data) {
       </div>
     </div>
     <div class="review-list" id="review-list"></div>
+  </div>
+</div>
+
+<!-- 填色器编辑弹窗 -->
+<div class="filler-modal-overlay" id="filler-modal" style="display:none">
+  <div class="filler-modal">
+    <h3 id="filler-modal-title">编辑题材 - A</h3>
+    <div class="filler-field">
+      <label>题材名</label>
+      <input type="text" id="filler-topic" placeholder="输入题材名称...">
+    </div>
+    <div class="filler-field">
+      <label>当下强度</label>
+      <div class="filler-slider-row">
+        <input type="range" id="filler-strength" min="-1" max="1" step="0.05" value="0" oninput="updateFillerSliderVal('filler-strength-val',this.value)">
+        <div class="filler-stepper">
+          <button class="filler-step-btn" onclick="stepFillerSlider('filler-strength','filler-strength-val',-0.1)">−</button>
+          <span class="filler-slider-val" id="filler-strength-val">0.00</span>
+          <button class="filler-step-btn" onclick="stepFillerSlider('filler-strength','filler-strength-val',0.1)">+</button>
+        </div>
+      </div>
+    </div>
+      <div class="filler-field">
+      <label>明日预期</label>
+      <div class="filler-slider-row">
+        <input type="range" id="filler-expectation" min="-1" max="1" step="0.05" value="0" oninput="updateFillerSliderVal('filler-expectation-val',this.value)">
+        <div class="filler-stepper">
+          <button class="filler-step-btn" onclick="stepFillerSlider('filler-expectation','filler-expectation-val',-0.1)">−</button>
+          <span class="filler-slider-val" id="filler-expectation-val">0.00</span>
+          <button class="filler-step-btn" onclick="stepFillerSlider('filler-expectation','filler-expectation-val',0.1)">+</button>
+        </div>
+      </div>
+    </div>
+    <div class="filler-field">
+      <label>后天预期</label>
+      <div class="filler-slider-row">
+        <input type="range" id="filler-expectation2" min="-1" max="1" step="0.05" value="0" oninput="updateFillerSliderVal('filler-expectation2-val',this.value)">
+        <div class="filler-stepper">
+          <button class="filler-step-btn" onclick="stepFillerSlider('filler-expectation2','filler-expectation2-val',-0.1)">−</button>
+          <span class="filler-slider-val" id="filler-expectation2-val">0.00</span>
+          <button class="filler-step-btn" onclick="stepFillerSlider('filler-expectation2','filler-expectation2-val',0.1)">+</button>
+        </div>
+      </div>
+    </div>
+    <div class="filler-modal-actions">
+      <button class="filler-modal-btn secondary" onclick="closeFillerModal()">取消</button>
+      <button class="filler-modal-btn primary" onclick="saveFillerRegion()">确定</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ========== 填色器 ==========
+var _fillerData = {};
+var _editingRegion = null;
+
+var _fillerData = { layout: "A B C\nA B D\nA E F", regions: {} };
+var _fillerLayout = null;
+
+// 解析布局字符串 → { rows, cols, positions: { A:{minR,maxR,minC,maxC}, ... } }
+function parseFillerLayout(layoutStr) {
+  var rows = layoutStr.trim().split('\n').map(function(r){ return r.trim().split(/\s+/); });
+  var numRows = rows.length, numCols = rows[0] ? rows[0].length : 0;
+  var pos = {};
+  for (var r = 0; r < numRows; r++) {
+    for (var c = 0; c < rows[r].length; c++) {
+      var letter = rows[r][c];
+      if (!letter || letter === '.') continue;
+      if (!pos[letter]) pos[letter] = { minR:r, maxR:r, minC:c, maxC:c };
+      else {
+        pos[letter].minR = Math.min(pos[letter].minR, r);
+        pos[letter].maxR = Math.max(pos[letter].maxR, r);
+        pos[letter].minC = Math.min(pos[letter].minC, c);
+        pos[letter].maxC = Math.max(pos[letter].maxC, c);
+      }
+    }
+  }
+  return { rows: numRows, cols: numCols, positions: pos };
+}
+
+function loadFillerData() {
+  fetch('/api/filler').then(function(r){return r.json();}).then(function(d){
+    if (!d) d = {};
+    // 兼容旧格式：纯对象形式 {"A":{...}} 或 {regions:{"A":{...}}, 没有 layout}
+    if (d.hasOwnProperty('layout') === false) {
+      if (d.hasOwnProperty('regions') === false) {
+        d = { layout: "A B C\nA B D\nA E F", regions: d };
+      } else {
+        d.layout = "A B C\nA B D\nA E F";
+      }
+    }
+    _fillerData = d;
+    if (!_fillerData.regions) _fillerData.regions = {};
+    _fillerLayout = parseFillerLayout(_fillerData.layout);
+    renderFillerGrid();
+  }).catch(function(){});
+}
+
+var _dragFrom = null;
+
+function renderFillerGrid() {
+  var container = document.getElementById('filler-grid');
+  if (!container || !_fillerLayout) return;
+  container.style.gridTemplateColumns = 'repeat(' + _fillerLayout.cols + ', 44px)';
+  container.style.gridTemplateRows = 'repeat(' + _fillerLayout.rows + ', 44px)';
+  container.innerHTML = '';
+  var letters = Object.keys(_fillerLayout.positions).sort();
+  letters.forEach(function(letter) {
+    var pos = _fillerLayout.positions[letter];
+    var data = _fillerData.regions[letter] || {};
+    var topic = data.topic || '';
+    var strength = data.strength !== undefined ? data.strength : 0;
+    var expectation = data.expectation !== undefined ? data.expectation : 0;
+    var expectation2 = data.expectation2 !== undefined ? data.expectation2 : 0;
+    var bias = expectation - strength;
+    var bias2 = expectation2 - expectation;
+    var biasStr = bias.toFixed(2);
+    var bias2Str = bias2.toFixed(2);
+    var el = document.createElement('div');
+    el.className = 'filler-region';
+    el.style.gridRow = (pos.minR + 1) + ' / span ' + (pos.maxR - pos.minR + 1);
+    el.style.gridColumn = (pos.minC + 1) + ' / span ' + (pos.maxC - pos.minC + 1);
+    if (topic) {
+      el.innerHTML = '<span class="f-label">' + escHtml(topic) + '</span><span class="f-bias">明:' + biasStr + '</span><span class="f-bias">后:' + bias2Str + '</span>';
+    }
+    el.style.backgroundColor = strengthToColor(strength);
+    el.style.borderColor = expectationToBorder(expectation);
+    el.onclick = (function(l) { return function(){ openFillerModal(l); }; })(letter);
+    // 拖拽支持
+    el.draggable = true;
+    el.dataset.dragLetter = letter;
+    el.ondragstart = function(e) {
+      _dragFrom = letter;
+      e.dataTransfer.effectAllowed = 'move';
+      this.style.opacity = '0.5';
+    };
+    el.ondragend = function(e) {
+      this.style.opacity = '1';
+      _dragFrom = null;
+    };
+    el.ondragover = function(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; };
+    el.ondrop = function(e) {
+      e.preventDefault();
+      if (!_dragFrom || _dragFrom === letter) return;
+      swapFillerLetters(_dragFrom, letter);
+      _dragFrom = null;
+    };
+    container.appendChild(el);
+  });
+}
+
+// 拖拽交换数据（layout 不变，只交换两个区域的数据）
+function swapFillerLetters(a, b) {
+  var tmp = JSON.parse(JSON.stringify(_fillerData.regions[a] || {}));
+  _fillerData.regions[a] = JSON.parse(JSON.stringify(_fillerData.regions[b] || {}));
+  _fillerData.regions[b] = tmp;
+  renderFillerGrid();
+  saveFillerToServer();
+}
+
+function strengthToColor(s) {
+  if (s === undefined || s === null) s = 0;
+  s = Math.max(-1, Math.min(1, s));
+  var r, g, b;
+  if (s <= 0) {
+    var t = s + 1;
+    r = Math.round(34 + (255 - 34) * t);
+    g = Math.round(197 + (255 - 197) * t);
+    b = Math.round(94 + (255 - 94) * t);
+  } else {
+    var t = s;
+    r = Math.round(255 + (239 - 255) * t);
+    g = Math.round(255 + (68 - 255) * t);
+    b = Math.round(255 + (68 - 255) * t);
+  }
+  return 'rgb(' + r + ',' + g + ',' + b + ')';
+}
+
+// 明日预期 → 边框色：<0 深绿，>0 深红，=0 保持默认
+function expectationToBorder(exp) {
+  if (exp === undefined || exp === null || exp === 0) return 'rgba(255,255,255,.7)';
+  if (exp < 0) return '#15803D'; // 深绿
+  return '#B91C1C';              // 深红
+}
+
+function openFillerModal(region) {
+  _editingRegion = region;
+  var data = _fillerData.regions[region] || {};
+  document.getElementById('filler-modal-title').textContent = '编辑题材 - ' + region;
+  document.getElementById('filler-topic').value = data.topic || '';
+  var strength = data.strength !== undefined ? data.strength : 0;
+  document.getElementById('filler-strength').value = strength;
+  updateFillerSliderVal('filler-strength-val', strength);
+  var expectation = data.expectation !== undefined ? data.expectation : 0;
+  document.getElementById('filler-expectation').value = expectation;
+  updateFillerSliderVal('filler-expectation-val', expectation);
+  var expectation2 = data.expectation2 !== undefined ? data.expectation2 : 0;
+  document.getElementById('filler-expectation2').value = expectation2;
+  updateFillerSliderVal('filler-expectation2-val', expectation2);
+  document.getElementById('filler-modal').style.display = 'flex';
+}
+
+function closeFillerModal() {
+  document.getElementById('filler-modal').style.display = 'none';
+  _editingRegion = null;
+}
+
+function updateFillerSliderVal(id, val) {
+  document.getElementById(id).textContent = parseFloat(val).toFixed(2);
+}
+
+function stepFillerSlider(sliderId, valId, delta) {
+  var slider = document.getElementById(sliderId);
+  var v = parseFloat(slider.value) + delta;
+  v = Math.round(Math.max(-1, Math.min(1, v)) * 100) / 100;
+  slider.value = v;
+  updateFillerSliderVal(valId, v);
+}
+
+function saveFillerRegion() {
+  if (!_editingRegion) return;
+  _fillerData.regions[_editingRegion] = {
+    topic: document.getElementById('filler-topic').value.trim(),
+    strength: parseFloat(document.getElementById('filler-strength').value),
+    expectation: parseFloat(document.getElementById('filler-expectation').value),
+    expectation2: parseFloat(document.getElementById('filler-expectation2').value)
+  };
+  closeFillerModal();
+  renderFillerGrid();
+  saveFillerToServer();
+}
+
+function saveFillerToServer() {
+  fetch('/api/filler', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(_fillerData)
+  }).catch(function(){});
+}
+
+// ========== 布局编辑器 ==========
+function openLayoutEditor() {
+  document.getElementById('layout-editor-text').value = _fillerData.layout;
+  document.getElementById('layout-editor-modal').style.display = 'flex';
+}
+
+function closeLayoutEditor() {
+  document.getElementById('layout-editor-modal').style.display = 'none';
+}
+
+function applyLayoutEditor() {
+  var newLayout = document.getElementById('layout-editor-text').value.trim();
+  var parsed = parseFillerLayout(newLayout);
+  if (!parsed.positions || Object.keys(parsed.positions).length === 0) {
+    alert('布局格式有误，请检查。每行用空格分隔区域字母，同字母合并。');
+    return;
+  }
+  _fillerData.layout = newLayout;
+  _fillerLayout = parsed;
+  closeLayoutEditor();
+  renderFillerGrid();
+  saveFillerToServer();
+}
+</script>
+
+<!-- 布局编辑器弹窗 -->
+<div class="filler-modal-overlay" id="layout-editor-modal" style="display:none" onclick="if(event.target===this)closeLayoutEditor()">
+  <div class="filler-modal">
+    <h3>编辑网格布局</h3>
+    <div class="filler-field">
+      <label>布局模板 — 每行空格分隔，同字母合并，. 表示空格</label>
+      <textarea id="layout-editor-text" rows="5" style="width:100%;padding:8px 10px;border-radius:7px;border:1px solid #D1D5DB;font-size:12px;font-family:monospace;box-sizing:border-box;resize:vertical;line-height:1.5" placeholder="A B C&#10;A B D&#10;A E F"></textarea>
+    </div>
+    <div class="filler-field" style="font-size:11px;color:#64748B;line-height:1.6">
+      <strong>规则：</strong><br>
+      • 同一字母在相邻位置会自动合并为矩形<br>
+      • 用 <code>.</code> 表示空单元格<br>
+      • 示例：<code>A B C\nA B D\nA E F</code> = 3×3，A=1×3，B=2×2
+    </div>
+    <div class="filler-modal-actions">
+      <button class="filler-modal-btn secondary" onclick="closeLayoutEditor()">取消</button>
+      <button class="filler-modal-btn primary" onclick="applyLayoutEditor()">应用</button>
+    </div>
   </div>
 </div>
 

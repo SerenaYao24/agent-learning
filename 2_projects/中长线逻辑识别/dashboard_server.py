@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """统一服务：静态文件 + API 持久化（风险标签 & 重点监控）"""
-import json, os, re, socket
+import json, os, re, socket, sys, argparse
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from urllib.parse import urlparse, unquote, parse_qs
 
@@ -16,6 +16,7 @@ REVIEW_META_FILE = os.path.join(DATA_DIR, "review_meta.json")
 TRACK_SECTORS_FILE = os.path.join(DATA_DIR, "track_sectors.json")
 STRONG_STOCKS_FILE = os.path.join(DATA_DIR, "strong_stocks.json")
 HOT_RANK_FILE = os.path.join(INDEX_DIR, "ths_hot_rank.json")
+FILLER_FILE = os.path.join(DATA_DIR, "filler_data.json")
 
 os.makedirs(INDEX_DIR, exist_ok=True)
 
@@ -138,6 +139,12 @@ class DashboardHandler(SimpleHTTPRequestHandler):
         elif path == "/api/hot-rank":
             data = read_json(HOT_RANK_FILE, {"stocks": [], "date": "", "total": 0})
             self._json_response(data)
+        elif path == "/api/filler":
+            data = read_json(FILLER_FILE, {"layout":"A B C\nA B D\nA E F","regions":{"A":{"topic":"","strength":0,"expectation":0},"B":{"topic":"","strength":0,"expectation":0},"C":{"topic":"","strength":0,"expectation":0},"D":{"topic":"","strength":0,"expectation":0},"E":{"topic":"","strength":0,"expectation":0},"F":{"topic":"","strength":0,"expectation":0}}})
+            self._json_response(data)
+        elif path == "/api/health":
+            # 健康检查：服务存活即返回 200，不依赖任何数据文件
+            self._json_response({"ok": True})
         else:
             super().do_GET()
 
@@ -223,6 +230,13 @@ class DashboardHandler(SimpleHTTPRequestHandler):
                 self._json_response({"ok": True})
             except Exception as e:
                 self._json_response({"ok": False, "error": str(e)}, 400)
+        elif path == "/api/filler":
+            try:
+                data = json.loads(body)
+                write_json(FILLER_FILE, data)
+                self._json_response({"ok": True})
+            except Exception as e:
+                self._json_response({"ok": False, "error": str(e)}, 400)
         else:
             self._json_response({"error": "not found"}, 404)
 
@@ -302,7 +316,11 @@ def find_free_port(start=8977):
 
 
 if __name__ == "__main__":
-    port = find_free_port()
-    server = HTTPServer(("127.0.0.1", port), DashboardHandler)
-    print(f"✓ Dashboard 服务已启动: http://127.0.0.1:{port}/dashboard.html")
+    parser = argparse.ArgumentParser(description="Dashboard 后台服务")
+    parser.add_argument("--port", type=int, default=None, help="指定监听端口（默认自动探测空闲端口）")
+    parser.add_argument("--host", default="127.0.0.1", help="监听地址（默认 127.0.0.1）")
+    args = parser.parse_args()
+    port = args.port if args.port else find_free_port()
+    server = HTTPServer((args.host, port), DashboardHandler)
+    print(f"✓ Dashboard 服务已启动: http://{args.host}:{port}/dashboard.html")
     server.serve_forever()
