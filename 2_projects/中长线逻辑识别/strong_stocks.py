@@ -2,7 +2,8 @@
 # -*- coding: utf-8 -*-
 """
 强势标的检测：检查所有自选股近 10 个交易日涨超 5% 的天数 ≥2 次，
-且近 5 个交易日涨超 5% 的天数 ≥1 次，则记录到 strong_stocks.json，否则从列表中移除。
+且近 1 个交易日涨超 5% 的天数 = 1 次（当日单日涨幅 ≥5%），且近 5 日累计涨幅 >5%，
+则记录到 strong_stocks.json，否则从列表中移除。
 
 性能优化：优先读取 stock_trend_analysis.py 生成的 stock_data.json 缓存，
 仅在缓存缺失或过期时调用 API，减少 90%+ 的重复 API 请求。
@@ -256,9 +257,9 @@ def main():
         five_day_return = data["five_day_return"]
 
         strong_count_10 = sum(1 for c in recent_10 if c >= 5)
-        strong_count_5 = sum(1 for c in recent_5 if c >= 5)
+        strong_count_1 = 1 if recent_5[-1] >= 5 else 0  # 近 1 日涨超 5% 恰好 1 次
 
-        if strong_count_10 >= 2 and strong_count_5 >= 1 and five_day_return > 5 and recent_5[-1] > 0:
+        if strong_count_10 >= 2 and strong_count_1 == 1 and five_day_return > 5 and recent_5[-1] > 0:
             info = stock_info.get(stock_name, {})
             code = name_cache.get(stock_name, "")
             if stock_name in existing_map:

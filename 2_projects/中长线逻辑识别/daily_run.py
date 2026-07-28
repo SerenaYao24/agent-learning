@@ -28,7 +28,8 @@ PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 STEPS = [
     ("自选股趋势分析", ["python3", "stock_trend_analysis.py", "-i", "interest_stock.md"]),
-    ("题材筛选 (加强+抗跌)", ["python3", "stock_filter.py", "--all", "--save-tags"]),
+    # 题材筛选 (加强+抗跌) 已停用：抗跌题材/加强题材判断不再在每日流程中执行
+    # （逻辑保留于 stock_filter.py，可手动运行）
     ("MA5 角度排名", ["python3", "scrape_ma5_ranking.py", "--top", "200"]),
     ("指数+ETF 数据", ["python3", "index_data.py"]),
     ("MA5角度趋势", ["python3", "_gen_ma5_trend.py"]),

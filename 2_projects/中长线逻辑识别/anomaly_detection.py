@@ -30,10 +30,10 @@ PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 ETF_CONFIG = [
     ("中证500ETF", 1000),
     ("沪深300ETF", 2600),
-    ("半导体设备ETF", 5000),
+    ("半导体设备ETF", 8000),
     ("上证50ETF", 2500),
-    ("科创芯片ETF", 2000),
-    ("创业板ETF", 2000),
+    ("科创芯片ETF", 5000),
+    ("创业板ETF", 3000),
 ]
 
 

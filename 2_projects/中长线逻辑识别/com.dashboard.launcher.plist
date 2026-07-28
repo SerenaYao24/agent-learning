@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.dashboard.launcher</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/local/bin/python3</string>
+        <string>/Users/heloise/Desktop/agent/2_projects/中长线逻辑识别/dashboard_launcher.py</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>SessionCreate</key>
+    <true/>
+    <key>ProcessType</key>
+    <string>Interactive</string>
+    <key>StandardOutPath</key>
+    <string>/Users/heloise/Desktop/agent/2_projects/中长线逻辑识别/launcher.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/heloise/Desktop/agent/2_projects/中长线逻辑识别/launcher.err.log</string>
+</dict>
+</plist>
